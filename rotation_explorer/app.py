@@ -22,6 +22,7 @@ from rotation_explorer.ui import (
     render_extension_roster,
     render_farm_chip,
     render_header,
+    render_location_map,
     render_method_and_glossary,
     render_recommendation,
     render_risk_and_timing,
@@ -71,6 +72,7 @@ def main() -> None:
     setup, submitted = render_sidebar()
     if setup is None:
         st.stop()
+    render_location_map(setup)
     if submitted:
         st.toast(f"Comparison updated for {setup.farm.name}.")
 
@@ -108,8 +110,16 @@ def main() -> None:
         + ("This point is saved for offline use." if cached else "Not yet saved for offline use.")
     )
 
-    climate = summarize_climate(daily)
-    monthly = monthly_climate(daily)
+    start_year, end_year = st.session_state.get("applied_climate_period", (2018, 2025))
+    climate_window = daily.loc[
+        (daily.index.year >= start_year) & (daily.index.year <= end_year)
+    ]
+    if climate_window.empty:
+        st.error("There is no climate record for the selected period. Choose another range.")
+        st.stop()
+
+    climate = summarize_climate(climate_window)
+    monthly = monthly_climate(climate_window)
     rotations = score_rotations(
         climate, setup.crop, setup.priorities, region=setup.farm.region
     )
@@ -123,5 +133,5 @@ def main() -> None:
     render_rotation_dashboard(rotations)
     render_share_kit(setup, climate, rotations, flags, timing)
     render_extension_roster(setup, top)
-    render_charts(daily, monthly)
+    render_charts(climate_window, monthly)
     render_method_and_glossary()

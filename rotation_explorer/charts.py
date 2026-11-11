@@ -24,51 +24,57 @@ def _base_layout(**kwargs) -> dict:
     return layout
 
 
-def climate_trend_figure(monthly: pd.DataFrame) -> go.Figure:
+def climate_trend_figure(
+    monthly: pd.DataFrame,
+    variables: tuple[str, ...] = ("Maximum temperature", "Rainfall"),
+) -> go.Figure:
+    series = {
+        "Rainfall": ("PRECTOTCORR", "Rainfall", "mm", "#8ec7e2", "bar"),
+        "Maximum temperature": ("T2M_MAX", "Maximum temperature", "°C", "#1e1e1f", "line"),
+        "Mean temperature": ("T2M", "Mean temperature", "°C", "#886816", "line"),
+        "Minimum temperature": ("T2M_MIN", "Minimum temperature", "°C", "#397f9e", "line"),
+    }
+    selected = [name for name in variables if name in series]
+    if not selected:
+        selected = ["Maximum temperature", "Rainfall"]
     fig = make_subplots(
-        rows=2,
+        rows=len(selected),
         cols=1,
         shared_xaxes=True,
-        vertical_spacing=0.1,
-        subplot_titles=(
-            "Monthly maximum temperature",
-            "Monthly rainfall",
-        ),
+        vertical_spacing=min(0.12, 0.28 / max(len(selected), 1)),
+        subplot_titles=selected,
     )
-    fig.add_trace(
-        go.Scatter(
-            x=monthly.index,
-            y=monthly["T2M_MAX"],
-            name="Max temperature",
-            line=dict(color="#1e1e1f", width=2.2, shape="spline"),
-            hovertemplate="%{x|%b %Y}<br>%{y:.1f} °C<extra></extra>",
-        ),
-        row=1,
-        col=1,
-    )
-    fig.add_trace(
-        go.Bar(
-            x=monthly.index,
-            y=monthly["PRECTOTCORR"],
-            name="Rainfall",
-            marker_color="#8ec7e2",
-            marker_line_width=0,
-            hovertemplate="%{x|%b %Y}<br>%{y:.0f} mm<extra></extra>",
-        ),
-        row=2,
-        col=1,
-    )
+    for row, name in enumerate(selected, start=1):
+        column, label, unit, color, kind = series[name]
+        hover = f"%{{x|%b %Y}}<br>%{{y:.{'0f' if unit == 'mm' else '1f'}}} {unit}<extra></extra>"
+        if kind == "bar":
+            trace = go.Bar(
+                x=monthly.index,
+                y=monthly[column],
+                name=label,
+                marker_color=color,
+                marker_line_width=0,
+                hovertemplate=hover,
+            )
+        else:
+            trace = go.Scatter(
+                x=monthly.index,
+                y=monthly[column],
+                name=label,
+                line=dict(color=color, width=2.2, shape="spline"),
+                hovertemplate=hover,
+            )
+        fig.add_trace(trace, row=row, col=1)
+        fig.update_yaxes(title_text=unit, row=row, col=1, gridcolor=GRID, zeroline=False)
     fig.update_layout(
-        height=540,
+        height=max(300, 250 * len(selected)),
         showlegend=False,
-        **_base_layout(margin=dict(l=48, r=24, t=64, b=36)),
+        **_base_layout(margin=dict(l=48, r=24, t=54, b=36)),
     )
     fig.update_annotations(
         font=dict(family="DM Sans, Inter, sans-serif", size=14, color="#1e1e1f"),
         yshift=8,
     )
-    fig.update_yaxes(title_text="°C", row=1, col=1, gridcolor=GRID, zeroline=False)
-    fig.update_yaxes(title_text="mm", row=2, col=1, gridcolor=GRID, zeroline=False)
     fig.update_xaxes(gridcolor=GRID, showgrid=False)
     return fig
 

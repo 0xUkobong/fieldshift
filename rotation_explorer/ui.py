@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from html import escape
+import math
 
 import pandas as pd
 import pydeck as pdk
@@ -65,8 +66,10 @@ APP_CSS = """
 html,body,[class*="css"] { font-family:var(--body); color:var(--ink); }
 .stApp { background:var(--canvas); color:var(--ink); }
 .block-container { max-width:100%; padding:1.2rem clamp(1.2rem,3.2vw,3.5rem) 4rem; }
-#MainMenu,footer,.stDeployButton,div[data-testid="stToolbar"],.stAppDeployButton { visibility:hidden; }
+#MainMenu,footer,.stDeployButton,.stAppDeployButton { visibility:hidden; }
 header[data-testid="stHeader"] { background:transparent; }
+header button[data-testid="stSidebarCollapsedControl"] { visibility:visible!important; opacity:1!important; background:var(--blue)!important; border:0!important; border-radius:22px!important; color:var(--carbon)!important; }
+header button[data-testid="stSidebarCollapsedControl"]:hover { background:#a6d5e9!important; }
 section[data-testid="stSidebar"] { background:var(--cream); border-right:1px solid var(--line); }
 section[data-testid="stSidebar"]>div { padding:1.25rem 1rem 2rem; }
 section[data-testid="stSidebar"] h2,section[data-testid="stSidebar"] h3 { color:var(--carbon); letter-spacing:-.045em; }
@@ -75,7 +78,7 @@ section[data-testid="stSidebar"] hr { border-color:var(--line); }
 section[data-testid="stSidebar"] [data-baseweb="tag"],section[data-testid="stSidebar"] [data-baseweb="tag"] *,section[data-testid="stSidebar"] [data-slot="tag"],section[data-testid="stSidebar"] [data-slot="tag"] *,section[data-testid="stSidebar"] [class*="tag"] { background:var(--blue)!important; color:var(--carbon)!important; border-radius:22px!important; }
 section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p { color:var(--ink)!important; font-size:.9rem; }
 section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { line-height:1.45; }
-.topbar { display:flex; align-items:center; justify-content:space-between; gap:1.5rem; padding:.65rem .85rem; margin-bottom:2.7rem; background:var(--mist); border-radius:3px; }
+.topbar { display:flex; align-items:center; justify-content:space-between; gap:1.5rem; padding:.65rem .85rem; margin-bottom:1.7rem; background:var(--mist); border-radius:3px; }
 .brand { display:flex; align-items:baseline; gap:.65rem; color:var(--carbon); font-size:1rem; font-weight:600; letter-spacing:-.05em; text-decoration:none; }
 .brand small { font-family:var(--mono); font-size:.65rem; font-weight:400; letter-spacing:.015em; text-transform:uppercase; color:var(--muted); }
 .toplinks { display:flex; align-items:center; gap:clamp(.75rem,2vw,2rem); }
@@ -85,11 +88,11 @@ section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { line-he
 .pill-link { display:inline-flex; align-items:center; gap:.75rem; padding:.55rem .65rem .55rem .9rem; border-radius:22px; background:var(--blue); color:var(--carbon)!important; text-decoration:none!important; font-size:.83rem; transition:background .15s ease; }
 .pill-link:hover { background:#a6d5e9; }
 .pill-link span { display:inline-grid; place-items:center; width:1.45rem; height:1.45rem; background:rgba(255,255,255,.65); border-radius:50%; font-size:1rem; line-height:1; }
-.hero { display:grid; grid-template-columns:minmax(0,1fr) minmax(15rem,.52fr); gap:2rem; align-items:end; padding:0 0 2rem; border-bottom:1px solid var(--line); }
+.hero { display:grid; grid-template-columns:minmax(0,1fr) minmax(15rem,.52fr); gap:2rem; align-items:end; padding:0 0 1.3rem; border-bottom:1px solid var(--line); }
 .kicker,.eyebrow { display:block; color:var(--muted); font-family:var(--mono); font-size:.7rem; line-height:1.4; letter-spacing:.045em; text-transform:uppercase; }
 .kicker { margin:0 0 .85rem; }
-.hero h1 { max-width:13ch; margin:0; color:var(--carbon); font-size:clamp(2.6rem,5.5vw,4.7rem); font-weight:400; line-height:.98; letter-spacing:-.065em; text-wrap:balance; }
-.lede { max-width:41rem; margin:1rem 0 0; color:#454546; font-size:1.05rem; line-height:1.5; letter-spacing:-.025em; }
+.hero h1 { max-width:19ch; margin:0; color:var(--carbon); font-size:clamp(2.5rem,4.5vw,3.8rem); font-weight:400; line-height:1; letter-spacing:-.065em; text-wrap:balance; }
+.lede { max-width:38rem; margin:.75rem 0 0; color:#454546; font-size:1rem; line-height:1.45; letter-spacing:-.025em; }
 .hero-aside { padding:1rem 0 0 1.2rem; border-left:1px solid var(--line); }
 .live-pill { display:inline-flex; align-items:center; gap:.5rem; padding:.42rem .72rem; border-radius:22px; background:var(--yellow); color:var(--carbon); font-family:var(--mono); font-size:.68rem; letter-spacing:.01em; }
 .live-dot { width:7px; height:7px; border-radius:50%; background:var(--carbon); }
@@ -97,7 +100,7 @@ section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { line-he
 .hero-nav { display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1.2rem; }
 .hero-nav a { display:inline-flex; align-items:center; gap:.45rem; padding:.58rem .7rem .58rem .9rem; background:var(--blue); color:var(--carbon); border-radius:22px; font-size:.8rem; text-decoration:none; }
 .hero-nav a span { font-size:1.1rem; }
-.facts { display:grid; grid-template-columns:1fr 1fr 1.35fr; gap:0; margin:0 0 4rem; padding:.95rem 0 1.1rem; border-bottom:1px solid var(--line); }
+.facts { display:grid; grid-template-columns:1fr 1fr 1fr 1.35fr; gap:0; margin:0 0 4rem; padding:.95rem 0 1.1rem; border-bottom:1px solid var(--line); }
 .fact { padding:.15rem 1.1rem .15rem 0; }
 .fact+.fact { padding-left:1.1rem; border-left:1px solid var(--line); }
 .fact span { display:block; margin-bottom:.38rem; color:var(--muted); font-family:var(--mono); font-size:.67rem; letter-spacing:.04em; text-transform:uppercase; }
@@ -132,10 +135,15 @@ section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { line-he
 .rec-banner { margin:0 0 1.6rem; }
 .result-note strong,.rec-banner strong { font-size:1.02rem; font-weight:500; letter-spacing:-.03em; }
 .result-note p,.rec-banner p { margin:.35rem 0 0; color:var(--muted); font-size:.88rem; line-height:1.5; }
-.steps { display:flex; flex-wrap:wrap; gap:.55rem; margin:1.1rem 0 0; }
+.steps { display:flex; flex-wrap:wrap; gap:.45rem; margin:.8rem 0 0; }
 .step { display:inline-flex; align-items:center; gap:.45rem; padding:.4rem .7rem; border-radius:22px; background:var(--mist); color:var(--ink); font-size:.8rem; }
 .step b { font-family:var(--mono); font-size:.72rem; font-weight:500; color:var(--muted); }
 .story { margin:0 0 1.6rem; padding:1rem 1.1rem; background:var(--cream); border-radius:18px; color:var(--ink); font-size:.95rem; line-height:1.5; }
+.map-panel { min-height:15rem; padding:1.2rem 1.25rem; background:var(--cream); border-radius:18px; }
+.map-panel h3 { margin:.8rem 0 .2rem; color:var(--carbon); font-size:1.4rem; font-weight:400; line-height:1.15; letter-spacing:-.05em; }
+.map-panel p { margin:.4rem 0; color:var(--muted); font-size:.85rem; line-height:1.45; }
+.map-panel strong { color:var(--ink); font-size:.9rem; font-weight:500; }
+.map-panel hr { margin:1rem 0; border:0; border-top:1px solid var(--line); }
 .pills { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.45rem; }
 .pill { display:inline-block; padding:.28rem .6rem; border-radius:22px; background:var(--blue); color:var(--carbon); font-size:.75rem; }
 .compare { width:100%; border-collapse:collapse; margin:0 0 1.1rem; font-size:.88rem; }
@@ -165,6 +173,7 @@ div[data-testid="stExpander"] [data-testid="stMarkdownContainer"] { color:var(--
 .foot { margin-top:1.7rem; padding-top:1rem; border-top:1px solid var(--line); color:var(--muted); font-family:var(--mono); font-size:.68rem; line-height:1.5; }
 div[data-testid="stPlotlyChart"] { padding:.25rem; border-radius:22px; background:var(--paper); }
 div[data-testid="stPlotlyChart"] iframe { border-radius:18px; }
+div[data-testid="stDeckGlJsonChart"] { overflow:hidden; border:1px solid var(--line); border-radius:22px; background:var(--mist); }
 div[data-baseweb="select"]>div,div[data-baseweb="input"]>div { border-color:#bdbdbd; border-radius:14px; }
 button[kind="secondary"],.stButton button { border:0; border-radius:22px; background:var(--blue); color:var(--carbon); }
 button[kind="secondary"]:hover,.stButton button:hover { border:0; background:#a6d5e9; color:var(--carbon); }
@@ -225,13 +234,19 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
     st.session_state.setdefault("last_location_choice", default_farm.name)
     st.session_state.setdefault("field_crop", default_setup.crop)
     st.session_state.setdefault("farm_priorities", list(DEFAULT_PRIORITIES))
+    st.session_state.setdefault("climate_period", (2018, 2025))
+    st.session_state.setdefault("applied_climate_period", (2018, 2025))
+    st.session_state.setdefault("observed_yield", "")
     st.session_state.setdefault("custom_farm_name", "")
     st.session_state.setdefault("custom_lat", 10.5)
     st.session_state.setdefault("custom_lon", -1.2)
     st.session_state.setdefault("custom_soil_note", "")
     st.session_state.setdefault("work_mode", "Farmer")
     st.session_state.setdefault("share_language", "en")
-    st.session_state.setdefault("low_bandwidth", False)
+    st.session_state.setdefault(
+        "low_bandwidth",
+        is_cached(default_farm.lat, default_farm.lon),
+    )
     st.session_state.setdefault("farmer_name", "")
     st.session_state.setdefault("extra_local_tip", "")
     st.session_state.setdefault("profiles", [])
@@ -257,13 +272,6 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
             if applied.farm.region == "Custom coordinates"
             else applied.farm.name
         )
-        dirty = location_choice != pending_location
-        if dirty:
-            st.markdown(
-                '<p class="dirty">Location changed. Apply to refresh climate and scores for this field.</p>',
-                unsafe_allow_html=True,
-            )
-
         submitted = False
         with st.form("field_setup", border=False):
             if location_choice == CUSTOM_LOCATION:
@@ -314,6 +322,21 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
                 st.caption(f"{farm.region} · {farm.lat:.2f}°, {farm.lon:.2f}°")
 
             crop = st.selectbox("Current main crop", list(CROPS), key="field_crop")
+            climate_period = st.slider(
+                "Climate period",
+                min_value=2018,
+                max_value=2025,
+                value=st.session_state["climate_period"],
+                step=1,
+                key="climate_period",
+                help="Choose the years used for climate summaries, charts, and rotation scores.",
+            )
+            st.text_input(
+                "Last harvest yield (t/ha, optional)",
+                key="observed_yield",
+                placeholder="e.g. 4.2",
+                help="Your field record for context. NASA POWER does not provide crop-yield data, so this does not change the climate score.",
+            )
             priorities = st.multiselect(
                 "What matters for this field?",
                 list(PRIORITIES),
@@ -335,6 +358,19 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
                 use_container_width=True,
             )
 
+        observed_yield = None
+        if submitted:
+            selected_yield = st.session_state.get("observed_yield", "").strip()
+            try:
+                observed_yield = float(selected_yield) if selected_yield else None
+                if observed_yield is not None and (
+                    observed_yield < 0 or not math.isfinite(observed_yield)
+                ):
+                    raise ValueError
+            except ValueError:
+                st.error("Enter a valid yield of 0 or more, or leave the field blank.")
+                return None, False
+
         if submitted and not priorities:
             st.error("Choose at least one priority to update the comparison.")
             return None, False
@@ -347,6 +383,21 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
                 farmer_name=st.session_state.get("farmer_name", ""),
                 local_tip=st.session_state.get("extra_local_tip", ""),
                 language=st.session_state.get("share_language", "en"),
+                observed_yield_t_ha=observed_yield,
+            )
+            st.session_state["applied_climate_period"] = tuple(climate_period)
+
+        applied = st.session_state["applied_setup"]
+        applied_location = CUSTOM_LOCATION if applied.farm.region == "Custom coordinates" else applied.farm.name
+        if (
+            st.session_state.get("location_choice", applied_location) != applied_location
+            or st.session_state.get("field_crop", applied.crop) != applied.crop
+            or tuple(st.session_state.get("farm_priorities", applied.priorities)) != tuple(applied.priorities)
+            or tuple(st.session_state.get("climate_period", (2018, 2025))) != tuple(st.session_state["applied_climate_period"])
+        ):
+            st.markdown(
+                '<p class="dirty">Field settings changed. Apply to refresh the comparison.</p>',
+                unsafe_allow_html=True,
             )
 
         st.markdown("---")
@@ -377,8 +428,9 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
                 key="share_language",
             )
             st.toggle(
-                "Low-bandwidth: use saved weather if available",
+                "Use saved climate first",
                 key="low_bandwidth",
+                help="Loads a saved point quickly and works offline. Turn off to request a fresh NASA POWER series when you apply.",
             )
 
         profiles = st.session_state.get("profiles", [])
@@ -404,11 +456,124 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
                     farmer_name=record["farmer_name"],
                     local_tip=record.get("local_tip", ""),
                     language=st.session_state.get("share_language", "en"),
+                    observed_yield_t_ha=record.get("observed_yield_t_ha"),
                 )
+                saved_yield = record.get("observed_yield_t_ha")
+                st.session_state["observed_yield"] = "" if saved_yield is None else str(saved_yield)
                 st.session_state["climate_request_attempted"] = False
                 st.rerun()
 
     return st.session_state["applied_setup"], submitted
+
+
+def _select_farm_from_map() -> None:
+    chart_state = st.session_state.get("field_location_map")
+    if not chart_state:
+        return
+    selection = chart_state.get("selection", {})
+    picked = selection.get("objects", {}).get("field-locations", [])
+    if picked and picked[0].get("name") in FARMS_BY_NAME:
+        st.session_state["location_choice"] = picked[0]["name"]
+
+
+def render_location_map(setup: FarmSetup) -> None:
+    choice = st.session_state.get("location_choice", setup.farm.name)
+    points = [
+        {
+            "name": farm.name,
+            "region": farm.region,
+            "lat": farm.lat,
+            "lon": farm.lon,
+            "color": [142, 199, 226, 235]
+            if choice == farm.name
+            else [30, 30, 31, 155],
+        }
+        for farm in FARMS_BY_NAME.values()
+    ]
+    if choice == CUSTOM_LOCATION:
+        custom_name = st.session_state.get("custom_farm_name", "").strip()
+        points.append(
+            {
+                "name": custom_name or "Your field",
+                "region": "Custom coordinates",
+                "lat": st.session_state.get("custom_lat", setup.farm.lat),
+                "lon": st.session_state.get("custom_lon", setup.farm.lon),
+                "color": [247, 202, 80, 255],
+            }
+        )
+
+    layer = pdk.Layer(
+        "ScatterplotLayer",
+        data=points,
+        id="field-locations",
+        get_position="[lon, lat]",
+        get_radius=72000,
+        radius_min_pixels=6,
+        radius_max_pixels=17,
+        get_fill_color="color",
+        pickable=True,
+        auto_highlight=True,
+        stroked=True,
+        get_line_color=[30, 30, 31, 210],
+        line_width_min_pixels=1,
+    )
+    deck = pdk.Deck(
+        layers=[layer],
+        initial_view_state=pdk.ViewState(
+            latitude=22,
+            longitude=-30,
+            zoom=1.05,
+            pitch=0,
+        ),
+        map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+        tooltip={"text": "{name}\n{region}"},
+    )
+
+    st.markdown(
+        """
+        <div class="section-head stacked" id="field">
+          <h2>Choose a field location</h2>
+          <p>Select a marked demo site, or enter coordinates in the field setup.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    map_col, note_col = st.columns((1.45, 0.55), gap="large")
+    with map_col:
+        st.pydeck_chart(
+            deck,
+            height=330,
+            on_select=_select_farm_from_map,
+            selection_mode="single-object",
+            key="field_location_map",
+            alt="Map of demo farm locations. Select a marker to choose that field.",
+        )
+    with note_col:
+        if choice in FARMS_BY_NAME:
+            selected = FARMS_BY_NAME[choice]
+            label = selected.name
+            coordinates = f"{selected.lat:.2f}°, {selected.lon:.2f}°"
+            region = selected.region
+        else:
+            label = st.session_state.get("custom_farm_name", "").strip() or "Your field"
+            coordinates = (
+                f"{st.session_state.get('custom_lat', setup.farm.lat):.2f}°, "
+                f"{st.session_state.get('custom_lon', setup.farm.lon):.2f}°"
+            )
+            region = "Custom coordinates"
+        st.markdown(
+            f"""
+            <div class="map-panel">
+              <span class="eyebrow">Selected point</span>
+              <h3>{escape(label)}</h3>
+              <p>{escape(region)}</p>
+              <strong>{escape(coordinates)}</strong>
+              <hr>
+              <p>Click a blue marker to switch to a demo site. For any other field, choose <em>Enter coordinates</em> in the setup panel.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 def render_farm_chip(setup: FarmSetup) -> None:
@@ -424,11 +589,17 @@ def render_farm_chip(setup: FarmSetup) -> None:
         else ""
     )
     who = setup.farmer_name.strip()
+    yield_fact = (
+        f"{setup.observed_yield_t_ha:g} t/ha"
+        if setup.observed_yield_t_ha is not None
+        else "Not provided"
+    )
     st.markdown(
         f"""
         <div class="facts">
           <div class="fact"><span>Location</span><strong>{escape(farm.name)}</strong></div>
           <div class="fact"><span>Current crop</span><strong>{escape(setup.crop)}</strong></div>
+          <div class="fact"><span>Last harvest yield</span><strong>{escape(yield_fact)}</strong></div>
           <div class="fact note"><span>Soils / zone</span><strong>{escape(farm.agrozone or farm.soil_note)}</strong></div>
         </div>
         <div class="fact" style="padding:0 0 .8rem;border:0;">
@@ -541,6 +712,19 @@ def render_rotation_dashboard(rotations: list[RotationResult]) -> None:
     water_pct = int(WATER_WEIGHT * 100)
     soil_pct = int(SOIL_WEIGHT * 100)
     pri_pct = int(PRIORITY_WEIGHT * 100)
+    sort_label = st.selectbox(
+        "Sort rotations by",
+        ("Overall fit", "Water resilience", "Soil health", "Priority match"),
+        key="rotation_sort",
+        help="Choose which score leads the comparison. The recommendation remains based on overall fit.",
+    )
+    sort_key = {
+        "Overall fit": lambda item: item.score,
+        "Water resilience": lambda item: item.water,
+        "Soil health": lambda item: item.soil,
+        "Priority match": lambda item: item.priority,
+    }[sort_label]
+    rotations = sorted(rotations, key=sort_key, reverse=True)
     top_score = max(result.score for result in rotations)
     rows = []
     for result in rotations:
@@ -660,6 +844,7 @@ def render_extension_roster(setup: FarmSetup, top: RotationResult) -> None:
             "local_tip": setup.local_tip or setup.farm.local_tip,
             "soil_note": setup.farm.soil_note,
             "agrozone": setup.farm.agrozone,
+            "observed_yield_t_ha": setup.observed_yield_t_ha,
             "top_rotation": top.name,
             "score": top.score,
             "sms": sms_summary(setup, top, setup.language),
@@ -711,13 +896,23 @@ def render_charts(daily: pd.DataFrame, monthly: pd.DataFrame) -> None:
         """,
         unsafe_allow_html=True,
     )
+    variables = st.multiselect(
+        "Climate variables",
+        ("Rainfall", "Maximum temperature", "Mean temperature", "Minimum temperature"),
+        default=("Maximum temperature", "Rainfall"),
+        key="climate_variables",
+        help="Choose which measures to plot across the selected climate period.",
+    )
     left, right = st.columns((1.3, 1), gap="large")
     with left:
-        st.plotly_chart(
-            climate_trend_figure(monthly),
-            width="stretch",
-            config=PLOTLY_CONFIG,
-        )
+        if variables:
+            st.plotly_chart(
+                climate_trend_figure(monthly, tuple(variables)),
+                width="stretch",
+                config=PLOTLY_CONFIG,
+            )
+        else:
+            st.caption("Choose at least one climate variable to draw the monthly chart.")
     with right:
         st.caption("Year-by-year rain and heat")
         st.plotly_chart(

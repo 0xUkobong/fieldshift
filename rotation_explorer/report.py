@@ -21,6 +21,11 @@ def comparison_report(
         f"Location: {farm.name} ({farm.lat:.2f}, {farm.lon:.2f})",
         f"Region: {farm.region}",
         f"Current crop: {setup.crop}",
+        (
+            f"Last harvest yield: {setup.observed_yield_t_ha:g} t/ha (farmer-provided, not a NASA POWER yield estimate)"
+            if setup.observed_yield_t_ha is not None
+            else "Last harvest yield: not provided"
+        ),
         f"Priorities: {', '.join(setup.priorities)}",
         f"Soils: {farm.soil_note}",
         "",

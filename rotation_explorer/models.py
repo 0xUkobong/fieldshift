@@ -25,6 +25,7 @@ class FarmSetup:
     farmer_name: str = ""
     local_tip: str = ""
     language: str = "en"
+    observed_yield_t_ha: float | None = None
 
 
 @dataclass(frozen=True)
