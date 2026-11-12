@@ -40,7 +40,7 @@ Open [http://127.0.0.1:8501](http://127.0.0.1:8501).
 
 The public launch page is in `public/index.html`. It contains crawlable product information, descriptions, Open Graph/Twitter tags, and JSON-LD. Brand assets, crawler files, and the app's page metadata live in `static/` and `rotation_explorer/seo.py`.
 
-The production target is `https://fieldshift.cloud/`. The recommended Caddy front door serves the static landing page and root-level crawler files, and proxies the interactive Streamlit explorer at `/explorer/`. See [`deploy/README.md`](deploy/README.md) for the service and domain setup. In another hosting setup, set `FIELDSHIFT_PUBLIC_URL=https://fieldshift.cloud` and `FIELDSHIFT_APP_BASE_PATH=explorer`, then map `/`, `/assets/`, `/robots.txt`, `/sitemap.xml`, and `/llms.txt` as described there.
+The production target is `https://fieldshift.cloud/`, deployed with the included Caddy front door. Caddy serves the static landing page and root-level crawler files, then proxies the interactive Streamlit explorer at `/explorer/`. See [`deploy/README.md`](deploy/README.md) for the server, DNS, and service setup.
 
 ## Tests
 

@@ -102,7 +102,7 @@ def render_about() -> None:
           <h2>Who it is for</h2>
           <p>Smallholders, farm families, and extension workers who want a starting point for a rotation conversation. You name the field, the current crop, and what matters on that land. The app does not assume you are in Iowa, California, or any other demo site.</p>
           <h2>What it does</h2>
-          <p>It locates a real field (continent, country, state or province, local government or county, and area), loads NASA POWER daily weather for that pin, and compares rotation options: keep the current sequence, add drought-tolerant cover, bring in a nitrogen-fixing legume, integrate trees, or intercrop.</p>
+          <p>It locates a real field (continent, country, state or province, local government or county, and area), loads NASA POWER daily weather for that pin, and compares rotation options: keep the current sequence, add drought-tolerant cover, bring in a nitrogen-fixing legume, integrate trees, or intercrop. Historical rainfall timing and dry-spell patterns help you shortlist a season window for the selected crop.</p>
           <p>Each option gets a transparent 1–5 score for water resilience, soil-health potential, and how well it matches the goals you typed. You can download an SMS-length note or a printable farmer card to share offline.</p>
           <h2>What it does not do</h2>
           <p>It does not replace an agronomist, a soil test, market prices, or what you see in the field. It does not send SMS by itself and does not create user accounts. Saved fields are stored by the app service; on fieldshift.cloud, that means the server hosting the service.</p>

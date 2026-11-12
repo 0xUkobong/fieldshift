@@ -44,7 +44,3 @@ The service sets `FIELDSHIFT_PUBLIC_URL` and `FIELDSHIFT_APP_BASE_PATH` for prod
 - Check `/explorer/` loads, and its title, canonical, Open Graph image, and description use `fieldshift.cloud`.
 - Set a record-retention period and publish a service contact and deletion process for hosted farm records.
 - Submit `https://fieldshift.cloud/sitemap.xml` in Google Search Console and Bing Webmaster Tools after verifying domain ownership.
-
-## Other hosting providers
-
-The app can run behind another reverse proxy, but that host must serve `public/index.html` at `/`, map `static/` to `/assets/`, serve the three crawler files at the domain root, and proxy `/explorer/` to Streamlit configured with `server.baseUrlPath=explorer`. Set `FIELDSHIFT_PUBLIC_URL=https://fieldshift.cloud` and `FIELDSHIFT_APP_BASE_PATH=explorer` in that service. Do not point `fieldshift.cloud` straight at an unconfigured Streamlit root if you need reliable root-level crawler files and static metadata.

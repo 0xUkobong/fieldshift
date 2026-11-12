@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import json
+import os
 from typing import Any
 
 import streamlit.components.v1 as components
@@ -29,17 +30,19 @@ def public_url() -> str:
 def asset_url(filename: str) -> str:
     if "github.com" in SITE_URL:
         return f"{GITHUB_RAW_STATIC}/{filename}"
-    if FIELDSHIFT_APP_BASE_PATH:
-        return f"{SITE_URL}/assets/{filename}"
-    return f"{SITE_URL}/app/static/{filename}"
+    # The production front door serves static files from /assets, regardless
+    # of the Streamlit mount path (currently /explorer).
+    return f"{SITE_URL}/assets/{filename}"
 
 
 def asset_src(filename: str) -> str:
     """Browser path for a UI asset in local Streamlit or the hosted front door."""
     if FIELDSHIFT_APP_BASE_PATH:
-        return asset_url(filename)
+        return f"/assets/{filename}"
     if "github.com" in SITE_URL:
         return asset_url(filename)
+    if os.environ.get("FIELDSHIFT_PUBLIC_URL"):
+        return f"/assets/{filename}"
     return f"/app/static/{filename}"
 
 

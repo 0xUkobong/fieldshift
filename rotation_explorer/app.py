@@ -16,6 +16,7 @@ from rotation_explorer.insights import (
 from rotation_explorer.power import PowerAPIError, fetch_power_payload, power_to_dataframe
 from rotation_explorer.scoring import score_rotations
 from rotation_explorer.location_ui import render_location_picker
+from rotation_explorer.planting_ui import render_planting_window
 from rotation_explorer.seo import EXPLORER, inject_seo, page_icon
 from rotation_explorer.ui import (
     inject_css,
@@ -31,6 +32,7 @@ from rotation_explorer.ui import (
     render_share_kit,
     render_sidebar,
 )
+from rotation_explorer.weather_ui import render_regional_weather_map
 
 
 @st.cache_data(show_spinner=False, ttl=POWER_CACHE_TTL_S)
@@ -143,6 +145,18 @@ def main() -> None:
     render_recommendation(rotations, setup, timing)
     render_risk_and_timing(flags, timing, setup)
     render_climate_snapshot(climate)
+    render_planting_window(
+        climate_window,
+        setup,
+        int(start_year),
+        int(end_year),
+    )
+    render_regional_weather_map(
+        setup,
+        int(start_year),
+        int(end_year),
+        prefer_cache=prefer_cache,
+    )
     render_rotation_dashboard(rotations)
     render_share_kit(setup, climate, rotations, flags, timing)
     render_extension_roster(setup, top)

@@ -1076,14 +1076,18 @@ def render_method_and_glossary() -> None:
         st.markdown(
             """
             - **NASA POWER** — NASA's Prediction Of Worldwide Energy Resources.
-              Gridded weather and agroclimate fields. We use the agriculture
-              community daily point API (no login for this public query).
+              Gridded weather and agroclimate fields. Field summaries use the
+              agriculture daily point API; the optional area map uses the daily
+              regional endpoint and preserves the source grid cells.
             - **T2M / T2M_MAX / T2M_MIN** — Average, maximum, and minimum
               2-meter air temperature (°C). High **T2M_MAX** is a simple heat-stress flag.
             - **PRECTOTCORR** — Bias-corrected total precipitation (mm/day).
               We sum it to monthly and annual rainfall.
             - **Heat-stress days** — Days with max temperature above 32 °C.
               A threshold for illustration, not a crop-specific damage model.
+            - **Planting-window screen** — A comparison of historical 2–6 month
+              rainfall windows and dry spells. It helps shortlist timing to discuss;
+              it is not a forecast or a crop-stage model.
             - **Frost days** — Days with min temperature below 0 °C.
             - **NDVI** — Greenness index from satellites (Landsat/MODIS). Not
               fetched in this prototype.
