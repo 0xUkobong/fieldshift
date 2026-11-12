@@ -28,7 +28,7 @@ def render_legal_nav(current: str = "") -> None:
     st.markdown(
         f"""
         <nav class="topbar" aria-label="Main navigation">
-          <a class="brand" href="{explorer_url}" target="_self"><img class="brand-mark" src="{asset_src('favicon.png')}" width="28" height="28" alt="">FIELD SHIFT <small>Rotation Explorer</small></a>
+          <a class="brand" href="{explorer_url}" target="_self"><img class="brand-mark" src="{asset_src('header-mark.png')}" width="36" height="36" alt="">FIELD SHIFT <small>Rotation Explorer</small></a>
           <div class="toplinks">
             <a href="{explorer_url}" target="_self">EXPLORER</a>
             <a href="{about_url}" target="_self">ABOUT</a>

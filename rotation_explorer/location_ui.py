@@ -123,6 +123,64 @@ def _apply_search_hit() -> None:
     )
 
 
+def _load_example_field() -> None:
+    name = st.session_state.get("example_field")
+    farm = next((item for item in EXAMPLE_FIELDS if item.name == name), None)
+    if farm is None:
+        return
+    hydrate_location(farm)
+    st.session_state["field_crop"] = farm.typical_crop
+    st.session_state["climate_request_attempted"] = False
+
+
+def _pin_selected_place() -> None:
+    country_name, country_code = _split_country(st.session_state.get("loc_country") or "")
+    if not country_code:
+        return
+    try:
+        found = lookup_area(
+            country=country_name,
+            country_code=country_code,
+            state=st.session_state.get("loc_state") or "",
+            lga=(st.session_state.get("loc_lga") or "").strip(),
+            area=(st.session_state.get("loc_area") or "").strip(),
+        )
+    except GeoLookupError as exc:
+        st.session_state["_location_message"] = ("warning", str(exc))
+        return
+    if not found or not found.has_point():
+        st.session_state["_location_message"] = (
+            "warning",
+            "No match for that place. Try a nearby town name, or click the map.",
+        )
+        return
+    hydrate_location(
+        farm_from_place(
+            found,
+            name=st.session_state.get("field_name") or found.suggested_name(),
+            crop=st.session_state.get("field_crop", "Maize"),
+        )
+    )
+
+
+def _name_pin_from_coordinates() -> None:
+    place = _pin_from_widgets()
+    if not place.has_point():
+        return
+    try:
+        named = reverse_geocode(float(place.lat), float(place.lon))
+    except GeoLookupError as exc:
+        st.session_state["_location_message"] = ("warning", str(exc))
+        return
+    hydrate_location(
+        farm_from_place(
+            named,
+            name=st.session_state.get("field_name") or named.suggested_name(),
+            crop=st.session_state.get("field_crop", "Maize"),
+        )
+    )
+
+
 def _pin_from_widgets() -> Place:
     continent = st.session_state.get("loc_continent") or ""
     country_name, country_code = _split_country(st.session_state.get("loc_country") or "")
@@ -149,6 +207,10 @@ def _pin_from_widgets() -> Place:
 
 
 def render_location_picker() -> Place:
+    pending_farm = st.session_state.pop("_pending_location_hydration", None)
+    if isinstance(pending_farm, Farm):
+        hydrate_location(pending_farm)
+
     st.session_state.setdefault("loc_continent", "")
     st.session_state.setdefault("loc_country", "")
     st.session_state.setdefault("loc_state", "")
@@ -157,6 +219,11 @@ def render_location_picker() -> Place:
     st.session_state.setdefault("field_name", "")
     st.session_state.setdefault("place_search", "")
     st.session_state.setdefault("loc_has_point", False)
+
+    location_message = st.session_state.pop("_location_message", None)
+    if location_message:
+        level, message = location_message
+        getattr(st, level)(message)
 
     st.markdown(
         """
@@ -204,9 +271,7 @@ def render_location_picker() -> Place:
             key="place_hit_index",
             on_change=_apply_search_hit,
         )
-        if st.button("Use selected place"):
-            _apply_search_hit()
-            st.rerun()
+        st.button("Use selected place", on_click=_apply_search_hit)
 
     continent = st.selectbox(
         "Continent",
@@ -266,34 +331,12 @@ def render_location_picker() -> Place:
             placeholder="e.g. farm settlement, ward, village",
         )
 
-    pinpoint = st.button(
+    st.button(
         "Pin this place on the map",
         disabled=not country_code,
         help="Looks up coordinates from the names you entered.",
+        on_click=_pin_selected_place,
     )
-    if pinpoint:
-        try:
-            found = lookup_area(
-                country=country_name,
-                country_code=country_code,
-                state=state or "",
-                lga=(st.session_state.get("loc_lga") or "").strip(),
-                area=(st.session_state.get("loc_area") or "").strip(),
-            )
-        except GeoLookupError as exc:
-            found = None
-            st.error(str(exc))
-        if found and found.has_point():
-            hydrate_location(
-                farm_from_place(
-                    found,
-                    name=st.session_state.get("field_name") or found.suggested_name(),
-                    crop=st.session_state.get("field_crop", "Maize"),
-                )
-            )
-            st.rerun()
-        elif pinpoint:
-            st.warning("No match for that place. Try a nearby town name, or click the map.")
 
     place = _pin_from_widgets()
     view = CONTINENT_VIEW.get(place.continent, (10.0, 20.0, 2.0))
@@ -344,13 +387,11 @@ def render_location_picker() -> Place:
                     lga=place.lga,
                     area=place.area,
                 )
-                st.warning(str(exc))
-            hydrate_location(
-                farm_from_place(
-                    named,
-                    name=st.session_state.get("field_name") or named.suggested_name(),
-                    crop=st.session_state.get("field_crop", "Maize"),
-                )
+                st.session_state["_location_message"] = ("warning", str(exc))
+            st.session_state["_pending_location_hydration"] = farm_from_place(
+                named,
+                name=st.session_state.get("field_name") or named.suggested_name(),
+                crop=st.session_state.get("field_crop", "Maize"),
             )
             st.rerun()
 
@@ -413,29 +454,18 @@ def render_location_picker() -> Place:
 
     place = _pin_from_widgets()
 
-    if st.button("Name the pin from coordinates", disabled=not place.has_point()):
-        try:
-            named = reverse_geocode(float(place.lat), float(place.lon))
-            hydrate_location(
-                farm_from_place(
-                    named,
-                    name=st.session_state.get("field_name") or named.suggested_name(),
-                    crop=st.session_state.get("field_crop", "Maize"),
-                )
-            )
-            st.rerun()
-        except GeoLookupError as exc:
-            st.error(str(exc))
+    st.button(
+        "Name the pin from coordinates",
+        disabled=not place.has_point(),
+        on_click=_name_pin_from_coordinates,
+    )
 
     with st.expander("Optional example fields (not used unless you pick one)"):
         st.caption("These are only shortcuts to known NASA POWER cache points. Your field does not have to be one of them.")
         names = [farm.name for farm in EXAMPLE_FIELDS]
         example = st.selectbox("Example field", ["—"] + names, key="example_field")
-        if example != "—" and st.button("Load example field"):
-            farm = next(item for item in EXAMPLE_FIELDS if item.name == example)
-            hydrate_location(farm)
-            st.session_state["field_crop"] = farm.typical_crop
-            st.rerun()
+        if example != "—":
+            st.button("Load example field", on_click=_load_example_field)
 
     st.session_state["place"] = place
     return place
