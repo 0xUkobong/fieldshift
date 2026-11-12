@@ -4,13 +4,19 @@ from __future__ import annotations
 
 from rotation_explorer.config import (
     AFRICAN_CEREALS,
+    AGROFORESTRY_SEQUENCES,
     CURRENT_SEQUENCES,
     HEAT_STRESS_C,
+    INTERCROP_SEQUENCES,
     PRIORITY_WEIGHT,
+    ROTATION_AGROFORESTRY,
     ROTATION_CURRENT,
     ROTATION_DROUGHT,
+    ROTATION_INTERCROP,
     ROTATION_LEGUME,
+    SOIL_AGROFORESTRY,
     SOIL_BY_CROP,
+    SOIL_INTERCROP,
     SOIL_WEIGHT,
     WATER_WEIGHT,
     WET_ANNUAL_MM,
@@ -87,6 +93,28 @@ def priority_match(name: str, priorities: tuple[str, ...] | list[str]) -> int:
             hits += 0.8
         if water:
             hits += 0.5
+    elif name == ROTATION_AGROFORESTRY:
+        if erosion:
+            hits += 1.6
+        if om:
+            hits += 1.4
+        if forage:
+            hits += 1.2
+        if nfix:
+            hits += 0.8
+        if water:
+            hits += 0.6
+    elif name == ROTATION_INTERCROP:
+        if forage:
+            hits += 1.3
+        if nfix:
+            hits += 1.0
+        if om:
+            hits += 0.9
+        if water:
+            hits += 0.7
+        if erosion:
+            hits += 0.6
 
     raw = 1.5 + (hits / n) * 3.5
     return clamp_score(raw)
@@ -97,22 +125,58 @@ def score_rotations(
     crop: str,
     priorities: tuple[str, ...] | list[str],
     region: str = "",
+    soil_type: str = "Loam",
 ) -> list[RotationResult]:
     heat = heat_pressure(climate)
     drought = drought_pressure(climate)
-    stress = 0.55 * drought + 0.45 * heat
 
-    current_water = clamp_score(4.2 - stress * 2.6)
-    drought_water = clamp_score(3.2 + stress * 2.0)
-    legume_water = clamp_score(3.0 + stress * 0.8)
+    # ET₀ adds evaporative demand pressure when solar data is available
+    if climate.avg_et0_mm_day > 0:
+        annual_et0_mm = climate.avg_et0_mm_day * 365
+        et0_pressure = max(0.0, min(1.0,
+            (annual_et0_mm - climate.annual_precip_mm) / 800.0
+        ))
+        stress = 0.35 * drought + 0.35 * heat + 0.30 * et0_pressure
+    else:
+        stress = 0.55 * drought + 0.45 * heat
 
-    current_soil = SOIL_BY_CROP.get(crop, 3)
+    if soil_type == "Sandy / Light":
+        stress = min(1.0, stress + 0.08)
+
+    is_africa = "Africa" in region or crop in AFRICAN_CEREALS or crop == "Cassava"
+    seq_key = "Africa" if is_africa else "default"
+
+    soil_water_adj = {
+        "Sandy / Light": (-0.4, 0.3, 0.1, 0.2, 0.1),
+        "Clay / Heavy": (-0.2, 0.0, 0.2, 0.2, 0.0),
+        "Volcanic / Organic": (0.2, 0.0, 0.0, 0.1, 0.1),
+    }.get(soil_type, (0.0, 0.0, 0.0, 0.0, 0.0))
+
+    current_water = clamp_score(4.2 - stress * 2.6 + soil_water_adj[0])
+    drought_water = clamp_score(3.2 + stress * 2.0 + soil_water_adj[1])
+    legume_water = clamp_score(3.0 + stress * 0.8 + soil_water_adj[2])
+    # Agroforestry: trees shade & buffer moisture; stronger benefit under stress
+    agro_water = clamp_score(2.6 + stress * 1.8 + soil_water_adj[3])
+    # Intercropping: mixed canopy provides moderate water benefit
+    intercrop_water = clamp_score(3.0 + stress * 1.1 + soil_water_adj[4])
+
+    base_crop_soil = SOIL_BY_CROP.get(crop, 3)
+    if soil_type == "Clay / Heavy":
+        current_soil = clamp_score(base_crop_soil - 0.5)
+    elif soil_type == "Volcanic / Organic":
+        current_soil = clamp_score(base_crop_soil + 0.5)
+    else:
+        current_soil = base_crop_soil
     drought_soil = 4
     legume_soil = 5
+    agro_soil = SOIL_AGROFORESTRY   # always 5 — trees drive long-term OM
+    intercrop_soil = SOIL_INTERCROP  # always 4 — mixed root systems improve structure
 
     current_pri = priority_match(ROTATION_CURRENT, priorities)
     drought_pri = priority_match(ROTATION_DROUGHT, priorities)
     legume_pri = priority_match(ROTATION_LEGUME, priorities)
+    agro_pri = priority_match(ROTATION_AGROFORESTRY, priorities)
+    intercrop_pri = priority_match(ROTATION_INTERCROP, priorities)
 
     trend_word = precip_trend_word(climate.precip_trend_pct)
     rain = climate.annual_precip_mm
@@ -175,7 +239,7 @@ def score_rotations(
         ),
         sequence=(
             "Sorghum or millet → cowpea/cover → cereal"
-            if "Africa" in region or crop in AFRICAN_CEREALS or crop == "Cassava"
+            if is_africa
             else "Drought-tolerant cereal → cover mix → cash crop"
         ),
     )
@@ -207,9 +271,69 @@ def score_rotations(
         ),
         sequence=(
             "Cereal → cowpea or groundnut → cereal"
-            if "Africa" in region or crop in AFRICAN_CEREALS or crop == "Cassava"
+            if is_africa
             else "Cereal → cowpea/soybean/clover mix → cereal"
         ),
     )
 
-    return [current, drought_rot, legume]
+    agroforestry = RotationResult(
+        name=ROTATION_AGROFORESTRY,
+        tagline="Grow trees with crops for lasting soil and shade",
+        score=overall_score(agro_water, agro_soil, agro_pri),
+        water=agro_water,
+        soil=agro_soil,
+        priority=agro_pri,
+        why=(
+            "Integrating multipurpose trees (e.g. Faidherbia, Gliricidia, fruit trees) "
+            "into the cropping system builds soil carbon over years, reduces runoff, "
+            f"and buffers temperature. With {heat_days:.0f} hot days/year and "
+            f"{rain:.0f} mm annual rain ({trend_word}), tree shade can moderate "
+            "heat stress and tree roots improve infiltration during dry spells. "
+            "Scores highest on erosion and long-term soil organic matter."
+        ),
+        benefits=(
+            "Long-term soil carbon and organic matter accumulation under trees",
+            "Tree canopy moderates heat stress on understorey crops",
+            "Fruit, fodder, or fuelwood provide supplemental income and food",
+            "Deep roots access subsoil moisture during dry spells",
+        ),
+        risks=(
+            "Establishment takes 2–3 seasons before full benefit is seen",
+            "Tree spacing and species choice require local agronomic advice",
+            "Some crops dislike heavy shade — match species to your main crop",
+            "Land tenure security matters for long-term tree investment",
+        ),
+        sequence=AGROFORESTRY_SEQUENCES[seq_key],
+    )
+
+    intercrop = RotationResult(
+        name=ROTATION_INTERCROP,
+        tagline="Two crops, one season — diversify risk and income",
+        score=overall_score(intercrop_water, intercrop_soil, intercrop_pri),
+        water=intercrop_water,
+        soil=intercrop_soil,
+        priority=intercrop_pri,
+        why=(
+            "Growing two complementary crops simultaneously (e.g. cereal + legume "
+            "in strip or row intercrop) spreads yield risk across the season, adds "
+            "nitrogen fixation, and covers soil faster than a pure stand. "
+            f"With {rain:.0f} mm/year rain ({trend_word}) and {heat_days:.0f} "
+            "hot days, a mixed canopy can reduce bare-soil evaporation and smooth "
+            "the impact of a mid-season dry spell."
+        ),
+        benefits=(
+            "Yield diversity reduces income risk if one crop fails",
+            "Legume component fixes nitrogen for the companion cereal",
+            "Denser canopy reduces weed pressure and soil moisture loss",
+            "Familiar to many smallholders — lower learning curve than agroforestry",
+        ),
+        risks=(
+            "Harvesting two crops at the same time increases peak labour demand",
+            "Species competition can reduce individual crop yields if poorly managed",
+            "Equipment designed for pure stands may not suit mixed beds",
+            "Market for the second crop must exist locally",
+        ),
+        sequence=INTERCROP_SEQUENCES[seq_key],
+    )
+
+    return [current, drought_rot, legume, agroforestry, intercrop]

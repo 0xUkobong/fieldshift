@@ -77,3 +77,28 @@ def test_power_to_dataframe_drops_fill_values():
     df = power_to_dataframe(payload)
     assert list(df.index.strftime("%Y-%m-%d")) == ["2018-01-01"]
     assert df.loc["2018-01-01", "PRECTOTCORR"] == 1.5
+
+
+def test_summarize_climate_computes_et0_and_rh():
+    idx = pd.date_range("2022-01-01", periods=365, freq="D")
+    df = pd.DataFrame(
+        {
+            "T2M": 24.0,
+            "T2M_MAX": 32.0,
+            "T2M_MIN": 16.0,
+            "PRECTOTCORR": 1.5,
+            "ALLSKY_SFC_SW_DWN": 20.0,  # MJ/m^2/day
+            "RH2M": 55.0,
+        },
+        index=idx,
+    )
+    summary = summarize_climate(df)
+    assert summary.avg_et0_mm_day is not None
+    assert 3.0 < summary.avg_et0_mm_day < 8.0
+    assert summary.avg_rh_pct == 55.0
+    assert summary.annual_water_balance_mm < 0
+    assert summary.dry_months_per_year > 0
+
+    monthly = monthly_climate(df)
+    assert "ET0_MM" in monthly.columns
+    assert "WATER_BALANCE_MM" in monthly.columns

@@ -138,3 +138,33 @@ def annual_bars_figure(df: pd.DataFrame) -> go.Figure:
         ),
     )
     return fig
+
+
+def water_balance_figure(monthly: pd.DataFrame) -> go.Figure:
+    """Monthly net moisture balance (Rainfall − ET₀) showing surplus vs. deficit months."""
+    if "WATER_BALANCE_MM" not in monthly.columns:
+        return go.Figure()
+    wb = monthly["WATER_BALANCE_MM"].fillna(0.0)
+    colors = ["#2f855a" if v >= 0 else "#d97706" for v in wb]
+    fig = go.Figure()
+    fig.add_trace(
+        go.Bar(
+            x=monthly.index,
+            y=wb,
+            name="Rain − ET₀",
+            marker_color=colors,
+            marker_line_width=0,
+            hovertemplate="%{x|%b %Y}<br>Balance: %{y:+.0f} mm<extra></extra>",
+        )
+    )
+    fig.add_hline(y=0, line_width=1.2, line_color="#626263")
+    fig.update_layout(
+        height=320,
+        showlegend=False,
+        **_base_layout(
+            margin=dict(l=48, r=20, t=24, b=36),
+            yaxis=dict(title="Rain − ET₀ (mm/mo)", gridcolor=GRID, zeroline=False),
+            xaxis=dict(gridcolor=GRID, showgrid=False),
+        ),
+    )
+    return fig

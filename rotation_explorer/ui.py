@@ -9,7 +9,11 @@ import pandas as pd
 import pydeck as pdk
 import streamlit as st
 
-from rotation_explorer.charts import annual_bars_figure, climate_trend_figure
+from rotation_explorer.charts import (
+    annual_bars_figure,
+    climate_trend_figure,
+    water_balance_figure,
+)
 from rotation_explorer.cache import cached_points, is_cached
 from rotation_explorer.config import (
     CROPS,
@@ -17,13 +21,19 @@ from rotation_explorer.config import (
     FARMS_BY_NAME,
     HEAT_STRESS_C,
     LANGUAGES,
+    POWER_YEAR_MAX,
+    POWER_YEAR_MIN,
     PRIORITIES,
     PRIORITY_WEIGHT,
+    ROTATION_AGROFORESTRY,
     ROTATION_CURRENT,
     ROTATION_DROUGHT,
+    ROTATION_INTERCROP,
     ROTATION_LEGUME,
+    SOIL_TYPES,
     SOIL_WEIGHT,
     WATER_WEIGHT,
+    infer_soil_type,
 )
 from rotation_explorer.climate import climate_story
 from rotation_explorer.insights import (
@@ -34,7 +44,7 @@ from rotation_explorer.insights import (
     sms_summary,
 )
 from rotation_explorer.models import ClimateSummary, Farm, FarmSetup, RotationResult
-from rotation_explorer.report import comparison_report
+from rotation_explorer.report import comparison_report, rotation_csv_report
 
 NEXT_STEPS = {
     ROTATION_CURRENT: (
@@ -49,6 +59,14 @@ NEXT_STEPS = {
         "Ask about inoculant, harvest timing, and how much cereal area you "
         "can rotate this season."
     ),
+    ROTATION_AGROFORESTRY: (
+        "Ask about suitable tree species, spacing, land tenure, and "
+        "how long until you see the first soil benefit."
+    ),
+    ROTATION_INTERCROP: (
+        "Ask about which companion crop fits your market, peak labour "
+        "timing, and whether your planting equipment can handle mixed beds."
+    ),
 }
 
 PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
@@ -57,6 +75,8 @@ ROTATION_META = {
     ROTATION_CURRENT: ("Baseline", "Keep what already works"),
     ROTATION_DROUGHT: ("Water", "Cover soil, ease demand"),
     ROTATION_LEGUME: ("Soil", "Fix nitrogen, build matter"),
+    ROTATION_AGROFORESTRY: ("Trees", "Long-term soil & shade"),
+    ROTATION_INTERCROP: ("Mixed", "Two crops, one season"),
 }
 CUSTOM_LOCATION = "Enter coordinates"
 
@@ -117,20 +137,29 @@ section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { line-he
 .stat .v { display:block; margin:.48rem 0 .1rem; color:var(--carbon); font-size:clamp(1.45rem,2vw,2rem); font-weight:400; line-height:1; letter-spacing:-.06em; }
 .stat .u { color:var(--muted); font-size:.75rem; line-height:1.3; }
 .stat.heat .v { color:var(--ink); }.stat.rain .v { color:#397f9e; }.stat.gold .v { color:#886816; }
-.rot-card { height:100%; min-height:18.3rem; padding:1rem 1rem .9rem; background:var(--paper); border:1px solid var(--line); border-radius:22px; }
-.rot-card.leader { border-color:var(--carbon); }
-.badge { display:inline-block; padding:.35rem .62rem; border-radius:22px; background:var(--mist); color:var(--ink); font-family:var(--mono); font-size:.64rem; line-height:1.3; letter-spacing:.015em; }
-.badge.gold { background:var(--yellow); color:var(--carbon); }
-.rot-card h3 { max-width:16ch; margin:.85rem 0 .25rem; color:var(--carbon); font-size:1.32rem; font-weight:400; line-height:1.15; letter-spacing:-.055em; text-wrap:balance; }
-.tagline { min-height:2.3rem; margin:0 0 1.1rem; color:var(--muted); font-size:.84rem; line-height:1.4; }
-.score-row { display:flex; align-items:baseline; gap:.4rem; margin-bottom:1rem; }
-.score-row .num { color:var(--carbon); font-size:2.65rem; font-weight:400; line-height:1; letter-spacing:-.065em; }
-.score-row .den { color:var(--muted); font-size:.78rem; }
-.bars { display:grid; gap:.55rem; margin-bottom:1rem; }
-.bar-lab { display:flex; justify-content:space-between; margin-bottom:.2rem; color:var(--muted); font-size:.73rem; }
-.track { height:5px; overflow:hidden; border-radius:10px; background:var(--mist); }
-.fill { height:100%; border-radius:10px; }
-.seq { min-height:2.5rem; padding:.55rem .65rem; border-radius:14px; background:var(--cream); color:var(--ink); font-size:.77rem; line-height:1.4; }
+.rot-card { position:relative; height:100%; min-height:20rem; padding:1.1rem 1.1rem 1rem; background:var(--paper); border:1px solid var(--line); border-radius:22px; box-sizing:border-box; overflow:hidden; transition:transform .18s ease, box-shadow .18s ease; }
+.rot-card:hover { transform:translateY(-3px); box-shadow:0 8px 28px rgba(0,0,0,.09); }
+.rot-card::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; background:var(--mist); border-radius:22px 22px 0 0; }
+.rot-card.leader { border-color:var(--carbon); border-width:2px; }
+.rot-card.leader::before { background:linear-gradient(90deg,#f7ca50,#8ec7e2); }
+.rot-card.accent-water::before { background:linear-gradient(90deg,#8ec7e2,#397f9e); }
+.rot-card.accent-soil::before { background:linear-gradient(90deg,#4caf78,#1e1e1f); }
+.rot-card.accent-base::before { background:linear-gradient(90deg,var(--mist),var(--line)); }
+.rot-card.accent-agro::before { background:linear-gradient(90deg,#6dbf7e,#2d6a4f); }
+.rot-card.accent-intercrop::before { background:linear-gradient(90deg,#c9a84c,#7b5e1a); }
+.badge { display:inline-flex; align-items:center; gap:.35rem; padding:.32rem .65rem; border-radius:22px; background:var(--mist); color:var(--ink); font-family:var(--mono); font-size:.62rem; line-height:1.3; letter-spacing:.02em; text-transform:uppercase; }
+.badge.gold { background:var(--yellow); color:var(--carbon); font-weight:600; }
+.rot-card h3 { max-width:18ch; margin:.9rem 0 .2rem; color:var(--carbon); font-size:1.38rem; font-weight:400; line-height:1.12; letter-spacing:-.06em; text-wrap:balance; }
+.tagline { min-height:2rem; margin:0 0 .95rem; color:var(--muted); font-size:.82rem; line-height:1.4; }
+.score-row { display:flex; align-items:baseline; gap:.5rem; margin-bottom:1.1rem; }
+.score-row .num { background:linear-gradient(135deg,var(--carbon) 40%,#555); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; font-size:3rem; font-weight:500; line-height:1; letter-spacing:-.07em; }
+.score-row .den { color:var(--muted); font-size:.76rem; letter-spacing:-.01em; }
+.bars { display:grid; gap:.6rem; margin-bottom:1rem; }
+.bar-lab { display:flex; justify-content:space-between; margin-bottom:.28rem; color:var(--muted); font-size:.71rem; letter-spacing:.01em; }
+.bar-lab .bar-val { font-family:var(--mono); font-size:.7rem; color:var(--ink); font-weight:500; }
+.track { height:7px; overflow:hidden; border-radius:10px; background:var(--mist); }
+.fill { height:100%; border-radius:10px; transition:width .6s cubic-bezier(.4,0,.2,1); }
+.seq { padding:.6rem .75rem; border-radius:14px; background:linear-gradient(135deg,var(--cream) 0%,#f0ead6 100%); color:var(--ink); font-size:.77rem; line-height:1.45; border:1px solid rgba(0,0,0,.06); }
 .result-note,.rec-banner { margin:.2rem 0 1.1rem; padding:1.1rem 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); color:var(--ink); }
 .rec-banner { margin:0 0 1.6rem; }
 .result-note strong,.rec-banner strong { font-size:1.02rem; font-weight:500; letter-spacing:-.03em; }
@@ -146,11 +175,23 @@ section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { line-he
 .map-panel hr { margin:1rem 0; border:0; border-top:1px solid var(--line); }
 .pills { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.45rem; }
 .pill { display:inline-block; padding:.28rem .6rem; border-radius:22px; background:var(--blue); color:var(--carbon); font-size:.75rem; }
-.compare { width:100%; border-collapse:collapse; margin:0 0 1.1rem; font-size:.88rem; }
-.compare th { text-align:left; font-family:var(--mono); font-size:.64rem; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); font-weight:500; padding:.45rem .5rem .45rem 0; border-bottom:1px solid var(--line); }
-.compare td { padding:.7rem .5rem .7rem 0; border-bottom:1px solid var(--line); vertical-align:middle; }
-.compare tr.top td { background:linear-gradient(90deg, rgba(247,202,80,.22), transparent 70%); }
-.compare .name { font-weight:500; color:var(--carbon); }
+.compare { width:100%; border-collapse:collapse; margin:0 0 1.4rem; font-size:.88rem; table-layout:fixed; }
+.compare thead { position:sticky; top:0; z-index:1; }
+.compare th { text-align:left; font-family:var(--mono); font-size:.62rem; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:600; padding:.55rem .6rem .55rem .75rem; border-bottom:2px solid var(--carbon); background:var(--canvas); }
+.compare th:first-child { padding-left:.75rem; }
+.compare th:not(:first-child) { width:6rem; text-align:center; padding-left:.6rem; }
+.compare td { padding:.8rem .6rem .8rem .75rem; border-bottom:1px solid var(--line); vertical-align:middle; transition:background .12s ease; }
+.compare td:first-child { padding-left:.75rem; }
+.compare td:not(:first-child) { text-align:center; padding-left:.6rem; }
+.compare tbody tr:hover td { background:rgba(142,199,226,.08); }
+.compare tr.top td { background:linear-gradient(90deg, rgba(247,202,80,.18) 0%, transparent 60%); }
+.compare tbody tr.top:hover td { background:linear-gradient(90deg, rgba(247,202,80,.28) 0%, rgba(142,199,226,.08) 60%); }
+.compare .name { font-weight:600; color:var(--carbon); max-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; letter-spacing:-.02em; font-size:.9rem; }
+.score-chip { display:inline-flex; align-items:center; justify-content:center; width:2rem; height:2rem; border-radius:50%; font-family:var(--mono); font-size:.82rem; font-weight:700; }
+.score-chip.hi { background:#d4f0d4; color:#1a4d1a; }
+.score-chip.mid { background:#fff3cc; color:#5c4200; }
+.score-chip.lo { background:#fde8e8; color:#5a1c1c; }
+.score-chip.overall { background:var(--carbon); color:var(--paper); font-size:.88rem; width:2.2rem; height:2.2rem; }
 .actions { display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; margin:.35rem 0 1.4rem; }
 .dirty { margin:.7rem 0 .4rem; padding:.65rem .75rem; border-radius:14px; background:#fff6d8; color:#5c4a12; font-size:.82rem; line-height:1.4; }
 .lvl { display:inline-flex; align-items:center; gap:.35rem; margin:0 .4rem .4rem 0; padding:.28rem .65rem; border-radius:22px; font-size:.75rem; font-weight:500; }
@@ -164,8 +205,10 @@ section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { line-he
 .sms-box { font-family:var(--mono); font-size:.78rem; line-height:1.5; background:var(--cream); border-radius:14px; padding:.85rem 1rem; white-space:pre-wrap; }
 .tip-box { margin:0 0 1.2rem; padding:.9rem 1rem; background:var(--cream); border-radius:16px; }
 @media(max-width:720px) { .cue-grid { grid-template-columns:1fr 1fr; } }
-div[data-testid="stExpander"] { border:1px solid var(--line); border-radius:18px; background:var(--paper); }
-div[data-testid="stExpander"] summary p { color:var(--ink); font-size:.88rem; }
+div[data-testid="stExpander"] { margin-top:.6rem; border:1px solid var(--line); border-radius:18px; background:var(--paper); }
+div[data-testid="stExpander"] summary { background:var(--paper)!important; border-radius:18px; }
+div[data-testid="stExpander"] summary:hover { background:var(--mist)!important; }
+div[data-testid="stExpander"] summary p,div[data-testid="stExpander"] summary span,div[data-testid="stExpander"] summary svg { color:var(--ink)!important; fill:var(--ink)!important; font-size:.88rem; }
 div[data-testid="stExpander"] [data-testid="stMarkdownContainer"] { color:var(--muted); line-height:1.5; }
 .method-grid { display:grid; grid-template-columns:1fr 1fr; gap:2rem; padding:1rem 0 1.3rem; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
 .method h4 { margin:0 0 .55rem; color:var(--ink); font-size:1.02rem; font-weight:500; letter-spacing:-.035em; }
@@ -234,8 +277,8 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
     st.session_state.setdefault("last_location_choice", default_farm.name)
     st.session_state.setdefault("field_crop", default_setup.crop)
     st.session_state.setdefault("farm_priorities", list(DEFAULT_PRIORITIES))
-    st.session_state.setdefault("climate_period", (2018, 2025))
-    st.session_state.setdefault("applied_climate_period", (2018, 2025))
+    st.session_state.setdefault("climate_period", (POWER_YEAR_MIN, POWER_YEAR_MAX))
+    st.session_state.setdefault("applied_climate_period", (POWER_YEAR_MIN, POWER_YEAR_MAX))
     st.session_state.setdefault("observed_yield", "")
     st.session_state.setdefault("custom_farm_name", "")
     st.session_state.setdefault("custom_lat", 10.5)
@@ -322,11 +365,16 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
                 st.caption(f"{farm.region} · {farm.lat:.2f}°, {farm.lon:.2f}°")
 
             crop = st.selectbox("Current main crop", list(CROPS), key="field_crop")
+            soil_choice = st.selectbox(
+                "Soil texture",
+                list(SOIL_TYPES),
+                key="field_soil_type",
+                help="Auto infers texture from the site description; override if you know your field's soil.",
+            )
             climate_period = st.slider(
                 "Climate period",
-                min_value=2018,
-                max_value=2025,
-                value=st.session_state["climate_period"],
+                min_value=POWER_YEAR_MIN,
+                max_value=POWER_YEAR_MAX,
                 step=1,
                 key="climate_period",
                 help="Choose the years used for climate summaries, charts, and rotation scores.",
@@ -376,6 +424,11 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
             return None, False
 
         if submitted:
+            resolved_soil = (
+                infer_soil_type(farm.soil_note)
+                if soil_choice == "Auto (from site)"
+                else soil_choice
+            )
             st.session_state["applied_setup"] = FarmSetup(
                 farm=farm,
                 crop=crop,
@@ -384,6 +437,7 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
                 local_tip=st.session_state.get("extra_local_tip", ""),
                 language=st.session_state.get("share_language", "en"),
                 observed_yield_t_ha=observed_yield,
+                soil_type=resolved_soil,
             )
             st.session_state["applied_climate_period"] = tuple(climate_period)
 
@@ -393,7 +447,7 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
             st.session_state.get("location_choice", applied_location) != applied_location
             or st.session_state.get("field_crop", applied.crop) != applied.crop
             or tuple(st.session_state.get("farm_priorities", applied.priorities)) != tuple(applied.priorities)
-            or tuple(st.session_state.get("climate_period", (2018, 2025))) != tuple(st.session_state["applied_climate_period"])
+            or tuple(st.session_state.get("climate_period", (POWER_YEAR_MIN, POWER_YEAR_MAX))) != tuple(st.session_state["applied_climate_period"])
         ):
             st.markdown(
                 '<p class="dirty">Field settings changed. Apply to refresh the comparison.</p>',
@@ -404,8 +458,8 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
         st.markdown("**Climate data**")
         packs = ", ".join(cached_points()) or "none yet"
         st.caption(
-            "NASA POWER daily agroclimatology, 2018–2025. "
-            "T2M, T2M_MAX, T2M_MIN, PRECTOTCORR · Community AG."
+            f"NASA POWER daily agroclimatology, {POWER_YEAR_MIN}–{POWER_YEAR_MAX}. "
+            "T2M, T2M_MAX, T2M_MIN, PRECTOTCORR, ALLSKY_SFC_SW_DWN, RH2M · Community AG."
         )
         st.caption(f"Offline packs on this device: {packs}")
         applied = st.session_state["applied_setup"]
@@ -600,7 +654,7 @@ def render_farm_chip(setup: FarmSetup) -> None:
           <div class="fact"><span>Location</span><strong>{escape(farm.name)}</strong></div>
           <div class="fact"><span>Current crop</span><strong>{escape(setup.crop)}</strong></div>
           <div class="fact"><span>Last harvest yield</span><strong>{escape(yield_fact)}</strong></div>
-          <div class="fact note"><span>Soils / zone</span><strong>{escape(farm.agrozone or farm.soil_note)}</strong></div>
+          <div class="fact note"><span>Soils / zone</span><strong>{escape(setup.soil_type)} · {escape(farm.agrozone or farm.soil_note)}</strong></div>
         </div>
         <div class="fact" style="padding:0 0 .8rem;border:0;">
           <span>Priorities{" · " + escape(who) if who else ""}</span>
@@ -634,6 +688,9 @@ def render_climate_snapshot(climate: ClimateSummary) -> None:
           <div class="stat"><span class="k">Frost days</span>
             <span class="v">{climate.frost_days_per_year:.0f}</span>
             <span class="u">nights below 0 °C each year</span></div>
+          {f'<div class="stat"><span class="k">Reference ET₀</span><span class="v">{climate.avg_et0_mm_day:.1f}</span><span class="u">mm/day, solar-based estimate</span></div>' if climate.avg_et0_mm_day > 0 else ''}
+          {f'<div class="stat"><span class="k">Relative humidity</span><span class="v">{climate.avg_rh_pct:.0f}%</span><span class="u">daily mean at 2 m</span></div>' if climate.avg_rh_pct > 0 else ''}
+          {f'<div class="stat rain"><span class="k">Moisture balance</span><span class="v">{climate.annual_water_balance_mm:+.0f}</span><span class="u">mm/yr (Rain − ET₀), {climate.dry_months_per_year:.1f} dry mo/yr</span></div>' if climate.avg_et0_mm_day > 0 else ''}
         </div>
         """,
         unsafe_allow_html=True,
@@ -642,9 +699,10 @@ def render_climate_snapshot(climate: ClimateSummary) -> None:
 
 def _score_bar(label: str, value: int, color: str) -> str:
     width = max(8, int(value / 5 * 100))
+    # Build a gradient fill for a richer look
     return (
         f'<div><div class="bar-lab"><span>{escape(label)}</span>'
-        f"<span>{value}/5</span></div>"
+        f'<span class="bar-val">{value}/5</span></div>'
         f'<div class="track"><div class="fill" style="width:{width}%;background:{color};"></div></div></div>'
     )
 
@@ -652,19 +710,34 @@ def _score_bar(label: str, value: int, color: str) -> str:
 def render_rotation_card(col, result: RotationResult, is_top_match: bool) -> None:
     badge, fallback_tag = ROTATION_META.get(result.name, ("Option", result.tagline))
     badge_class = "badge gold" if is_top_match else "badge"
-    leader_class = "rot-card leader" if is_top_match else "rot-card"
-    leader_label = " · Top match" if is_top_match else ""
+    # Determine accent class based on card type
+    from rotation_explorer.config import ROTATION_CURRENT  # noqa: PLC0415
+    if is_top_match:
+        accent = "leader"
+    elif result.name == ROTATION_CURRENT:
+        accent = "accent-base"
+    elif result.name == ROTATION_AGROFORESTRY:
+        accent = "accent-agro"
+    elif result.name == ROTATION_INTERCROP:
+        accent = "accent-intercrop"
+    elif result.water >= result.soil:
+        accent = "accent-water"
+    else:
+        accent = "accent-soil"
+    leader_label = "&nbsp;· Top match" if is_top_match else ""
     html = f"""
-    <div class="{leader_class}">
+    <div class="rot-card {accent}">
       <span class="{badge_class}">{escape(badge)}{leader_label}</span>
       <h3>{escape(result.name)}</h3>
       <p class="tagline">{escape(result.tagline or fallback_tag)}</p>
-      <div class="score-row"><span class="num">{result.score}</span>
-        <span class="den">/ 5 overall score</span></div>
+      <div class="score-row">
+        <span class="num">{result.score}</span>
+        <span class="den">/ 5 overall score</span>
+      </div>
       <div class="bars">
-        {_score_bar("Water", result.water, "#8ec7e2")}
-        {_score_bar("Soil", result.soil, "#1e1e1f")}
-        {_score_bar("Priorities", result.priority, "#f7ca50")}
+        {_score_bar("Water", result.water, "linear-gradient(90deg,#8ec7e2,#397f9e)")}
+        {_score_bar("Soil", result.soil, "linear-gradient(90deg,#555,#1e1e1f)")}
+        {_score_bar("Priorities", result.priority, "linear-gradient(90deg,#f7ca50,#e0a800)")}
       </div>
       <div class="seq">{escape(result.sequence)}</div>
       <div class="pills" style="margin-top:.7rem;">
@@ -726,14 +799,21 @@ def render_rotation_dashboard(rotations: list[RotationResult]) -> None:
     }[sort_label]
     rotations = sorted(rotations, key=sort_key, reverse=True)
     top_score = max(result.score for result in rotations)
+    def _chip(val: int | float, is_overall: bool = False) -> str:
+        cls = "overall" if is_overall else ("hi" if val >= 4 else ("mid" if val >= 3 else "lo"))
+        display = f"{val:.1f}" if is_overall else str(val)
+        return f'<span class="score-chip {cls}">{display}</span>'
+
     rows = []
     for result in rotations:
         klass = "top" if result.score == top_score else ""
         rows.append(
             "<tr class='"
             f"{klass}'><td class='name'>{escape(result.name)}</td>"
-            f"<td>{result.score:.1f}</td><td>{result.water}</td>"
-            f"<td>{result.soil}</td><td>{result.priority}</td></tr>"
+            f"<td>{_chip(result.score, is_overall=True)}</td>"
+            f"<td>{_chip(result.water)}</td>"
+            f"<td>{_chip(result.soil)}</td>"
+            f"<td>{_chip(result.priority)}</td></tr>"
         )
     st.markdown(
         f"""
@@ -749,7 +829,7 @@ def render_rotation_dashboard(rotations: list[RotationResult]) -> None:
         """,
         unsafe_allow_html=True,
     )
-    cols = st.columns(3, gap="small")
+    cols = st.columns(len(rotations), gap="small")
     for col, result in zip(cols, rotations):
         render_rotation_card(col, result, is_top_match=result.score == top_score)
 
@@ -789,6 +869,7 @@ def render_share_kit(
     sms = sms_summary(setup, top, lang)
     card = farmer_card_html(setup, climate, top, flags, timing, lang)
     report = comparison_report(setup, climate, rotations)
+    csv_data = rotation_csv_report(setup, climate, rotations)
     slug = setup.farm.name.lower().replace(" ", "-")
     st.markdown(
         """
@@ -800,7 +881,7 @@ def render_share_kit(
         unsafe_allow_html=True,
     )
     st.markdown(f'<div class="sms-box">{escape(sms)}</div>', unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.download_button("SMS / USSD text", sms, file_name=f"{slug}-sms.txt", mime="text/plain")
     with c2:
@@ -816,6 +897,13 @@ def render_share_kit(
             report,
             file_name=f"rotation-explorer-{slug}.txt",
             mime="text/plain",
+        )
+    with c4:
+        st.download_button(
+            "Download CSV",
+            csv_data,
+            file_name=f"rotation-explorer-{slug}.csv",
+            mime="text/csv",
         )
 
 
@@ -917,6 +1005,13 @@ def render_charts(daily: pd.DataFrame, monthly: pd.DataFrame) -> None:
         st.caption("Year-by-year rain and heat")
         st.plotly_chart(
             annual_bars_figure(daily),
+            width="stretch",
+            config=PLOTLY_CONFIG,
+        )
+    if "WATER_BALANCE_MM" in monthly.columns:
+        st.caption("Monthly moisture balance (Rainfall − ET₀): green = surplus, amber = deficit")
+        st.plotly_chart(
+            water_balance_figure(monthly),
             width="stretch",
             config=PLOTLY_CONFIG,
         )

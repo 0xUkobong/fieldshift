@@ -2,14 +2,24 @@
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 from pathlib import Path
 
 from rotation_explorer.models import Farm
 
+# ---------------------------------------------------------------------------
+# NASA POWER — rolling 7-year window ending ~5 days ago (API data lag)
+# ---------------------------------------------------------------------------
+_today = date.today()
+_end_date = _today - timedelta(days=5)
+_start_date = _end_date.replace(year=_end_date.year - 7)
+
 POWER_URL = "https://power.larc.nasa.gov/api/temporal/daily/point"
-POWER_START = "20180101"
-POWER_END = "20251231"
-POWER_PARAMETERS = "T2M,T2M_MAX,T2M_MIN,PRECTOTCORR"
+POWER_START = _start_date.strftime("%Y%m%d")
+POWER_END = _end_date.strftime("%Y%m%d")
+POWER_YEAR_MIN = _start_date.year
+POWER_YEAR_MAX = _end_date.year
+POWER_PARAMETERS = "T2M,T2M_MAX,T2M_MIN,PRECTOTCORR,ALLSKY_SFC_SW_DWN,RH2M"
 POWER_COMMUNITY = "AG"
 POWER_FILL_VALUE = -999.0
 POWER_TIMEOUT_S = 90
@@ -153,3 +163,42 @@ SOIL_BY_CROP = {
 ROTATION_CURRENT = "Current Rotation"
 ROTATION_DROUGHT = "Drought-Tolerant + Cover Crop"
 ROTATION_LEGUME = "Nitrogen-Fixing Legume Mix"
+ROTATION_AGROFORESTRY = "Agroforestry / Tree-Integrated"
+ROTATION_INTERCROP = "Intensive Intercropping"
+
+# Soil-health baseline scores for the two new rotations
+SOIL_AGROFORESTRY = 5   # Trees drive long-term OM build-up
+SOIL_INTERCROP = 4      # Mixed canopy improves over monoculture
+
+# Crop sequences for new rotations
+AGROFORESTRY_SEQUENCES = {
+    "Africa": "Cereal + multipurpose trees (Faidherbia, Gliricidia) → legume understory",
+    "default": "Cash crop + fruit / fuelwood trees → nitrogen-fixing understory",
+}
+INTERCROP_SEQUENCES = {
+    "Africa": "Maize + cowpea (same beds) → sorghum + groundnut",
+    "default": "Main cereal + legume (strip or row intercrop) → alternate cash crop",
+}
+
+SOIL_TYPES = (
+    "Auto (from site)",
+    "Loam",
+    "Sandy / Light",
+    "Clay / Heavy",
+    "Silty / Alluvial",
+    "Volcanic / Organic",
+)
+
+
+def infer_soil_type(soil_note: str) -> str:
+    """Infer a standard soil texture bucket from a free-text site soil note."""
+    note = soil_note.lower()
+    if "sandy" in note or "sand" in note or "light" in note:
+        return "Sandy / Light"
+    if "clay" in note or "vertisol" in note or "heavy" in note:
+        return "Clay / Heavy"
+    if "silt" in note or "alluvial" in note:
+        return "Silty / Alluvial"
+    if "volcanic" in note or "organic" in note or "peat" in note:
+        return "Volcanic / Organic"
+    return "Loam"

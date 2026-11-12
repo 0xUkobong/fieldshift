@@ -8,7 +8,7 @@ import streamlit as st
 
 from rotation_explorer.cache import is_cached, load_cached, save_cached
 from rotation_explorer.climate import monthly_climate, summarize_climate
-from rotation_explorer.config import POWER_CACHE_TTL_S
+from rotation_explorer.config import POWER_CACHE_TTL_S, POWER_YEAR_MAX, POWER_YEAR_MIN
 from rotation_explorer.insights import (
     climate_risk_flags,
     seasonal_guidance,
@@ -110,7 +110,9 @@ def main() -> None:
         + ("This point is saved for offline use." if cached else "Not yet saved for offline use.")
     )
 
-    start_year, end_year = st.session_state.get("applied_climate_period", (2018, 2025))
+    start_year, end_year = st.session_state.get(
+        "applied_climate_period", (POWER_YEAR_MIN, POWER_YEAR_MAX)
+    )
     climate_window = daily.loc[
         (daily.index.year >= start_year) & (daily.index.year <= end_year)
     ]
@@ -121,7 +123,11 @@ def main() -> None:
     climate = summarize_climate(climate_window)
     monthly = monthly_climate(climate_window)
     rotations = score_rotations(
-        climate, setup.crop, setup.priorities, region=setup.farm.region
+        climate,
+        setup.crop,
+        setup.priorities,
+        region=setup.farm.region,
+        soil_type=setup.soil_type,
     )
     flags = climate_risk_flags(climate)
     top = max(rotations, key=lambda item: item.score)
