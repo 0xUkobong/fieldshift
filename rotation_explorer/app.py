@@ -63,7 +63,7 @@ def load_daily_climate(lat: float, lon: float, prefer_cache: bool):
 
 def main() -> None:
     st.set_page_config(
-        page_title="Field Shift · Rotation Explorer",
+        page_title=EXPLORER.title,
         page_icon=page_icon(),
         layout="wide",
         initial_sidebar_state="expanded",

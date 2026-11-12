@@ -157,24 +157,23 @@ DISCLAIMER = (
     "or on-farm observations."
 )
 
-SITE_NAME = "Field Shift · Rotation Explorer"
+SITE_NAME = "Field Shift"
 SITE_SHORT_NAME = "Field Shift"
-SITE_TAGLINE = "Compare crop rotations with NASA weather for the field you farm."
+SITE_TAGLINE = "Crop rotation planning for your field"
 SITE_DESCRIPTION = (
-    "Field Shift Rotation Explorer helps farmers and extension workers pin a real "
-    "field, load NASA POWER climate, and compare crop rotations with transparent "
-    "scores. Built for the NASA Space Apps Challenge 2026 Field Shift challenge."
+    "Compare crop rotations using NASA POWER weather, your current crop, and local "
+    "priorities. Clear, explained scores and risks for farmers and extension workers."
 )
 SITE_KEYWORDS = (
-    "crop rotation, NASA POWER, smallholder farming, agroclimatology, maize, "
-    "sorghum, millet, teff, cowpea, extension worker, Field Shift, Space Apps, "
-    "farm climate, drought resilience, nitrogen fixing"
+    "crop rotation planner, crop rotation, farm climate, NASA POWER, "
+    "smallholder farming, agricultural extension, drought resilience, soil health"
 )
 SITE_LOCALE = "en_US"
 SITE_URL = os.environ.get(
     "FIELDSHIFT_PUBLIC_URL",
-    "https://github.com/0xUkobong/fieldshift",
+    "https://fieldshift.cloud",
 ).rstrip("/")
+FIELDSHIFT_APP_BASE_PATH = os.environ.get("FIELDSHIFT_APP_BASE_PATH", "").strip("/")
 GITHUB_RAW_STATIC = (
     "https://raw.githubusercontent.com/0xUkobong/fieldshift/main/static"
 )

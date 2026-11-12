@@ -10,6 +10,7 @@ import streamlit.components.v1 as components
 
 from rotation_explorer.config import (
     FAVICON_PATH,
+    FIELDSHIFT_APP_BASE_PATH,
     GITHUB_RAW_STATIC,
     SITE_DESCRIPTION,
     SITE_KEYWORDS,
@@ -26,18 +27,36 @@ def public_url() -> str:
 
 
 def asset_url(filename: str) -> str:
-    hosted = SITE_URL
-    if "github.com" in hosted:
+    if "github.com" in SITE_URL:
         return f"{GITHUB_RAW_STATIC}/{filename}"
-    return f"{hosted}/app/static/{filename}"
+    if FIELDSHIFT_APP_BASE_PATH:
+        return f"{SITE_URL}/assets/{filename}"
+    return f"{SITE_URL}/app/static/{filename}"
+
+
+def asset_src(filename: str) -> str:
+    """Browser path for a UI asset in local Streamlit or the hosted front door."""
+    if FIELDSHIFT_APP_BASE_PATH:
+        return asset_url(filename)
+    if "github.com" in SITE_URL:
+        return asset_url(filename)
+    return f"/app/static/{filename}"
+
+
+def app_route(path: str) -> str:
+    if path.startswith("http"):
+        return path
+    normalized = "/" + path.lstrip("/")
+    base_path = f"/{FIELDSHIFT_APP_BASE_PATH}" if FIELDSHIFT_APP_BASE_PATH else ""
+    if normalized == "/":
+        return f"{base_path}/"
+    return f"{base_path}{normalized}"
 
 
 def absolute(path: str) -> str:
     if path.startswith("http"):
         return path
-    if "github.com" in SITE_URL:
-        return SITE_URL
-    return f"{SITE_URL}{path if path.startswith('/') else '/' + path}"
+    return f"{SITE_URL}{app_route(path)}"
 
 
 @dataclass(frozen=True)
@@ -52,7 +71,7 @@ class PageSEO:
 
 
 EXPLORER = PageSEO(
-    title=f"{SITE_NAME} — {SITE_TAGLINE}",
+    title=f"{SITE_NAME} | {SITE_TAGLINE}",
     description=SITE_DESCRIPTION,
     path="/",
 )
@@ -76,8 +95,8 @@ DISCLAIMER = PageSEO(
 PRIVACY = PageSEO(
     title=f"Privacy · {SITE_SHORT_NAME}",
     description=(
-        "Privacy notice for Field Shift: farmer records stay on the device. "
-        "NASA POWER and OpenStreetMap receive coordinates or place searches only."
+        "Privacy notice for Field Shift: hosted field records are stored on the "
+        "app server. NASA POWER and OpenStreetMap receive coordinates or searches."
     ),
     path="/Privacy",
 )
@@ -117,13 +136,14 @@ def _software_application() -> dict[str, Any]:
         "areaServed": {"@type": "Place", "name": "Worldwide"},
         "keywords": SITE_KEYWORDS,
         "creator": {
+            "@id": f"{SITE_URL}/#organization",
             "@type": "Organization",
             "name": "Field Shift project",
             "description": (
                 "Independent NASA Space Apps Challenge 2026 entry. "
                 "Not an official NASA product."
             ),
-            "url": SITE_URL,
+            "url": f"{SITE_URL}/",
         },
         "citation": "NASA Langley Research Center POWER Project",
     }
@@ -148,8 +168,8 @@ def _faq() -> dict[str, Any]:
         ),
         (
             "Where is farmer data stored?",
-            "On the device running the app, in a local SQLite file and climate "
-            "cache. There is no cloud account.",
+            "On the machine hosting the Field Shift service, in a local SQLite "
+            "file and climate cache. The hosted service has no user accounts.",
         ),
     ]
     return {
@@ -170,10 +190,18 @@ def graph_for(page: PageSEO) -> dict[str, Any]:
         {
             "@type": "WebSite",
             "name": SITE_NAME,
-            "url": absolute("/"),
+            "url": f"{SITE_URL}/",
             "description": SITE_DESCRIPTION,
             "inLanguage": "en",
-            "publisher": {"@type": "Organization", "name": "Field Shift project"},
+            "publisher": {"@id": f"{SITE_URL}/#organization"},
+        },
+        {
+            "@type": "Organization",
+            "@id": f"{SITE_URL}/#organization",
+            "name": "Field Shift",
+            "url": f"{SITE_URL}/",
+            "logo": {"@type": "ImageObject", "url": asset_url("icon-512.png")},
+            "sameAs": ["https://github.com/0xUkobong/fieldshift"],
         },
         _software_application(),
         {

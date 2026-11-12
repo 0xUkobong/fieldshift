@@ -33,6 +33,7 @@ from rotation_explorer.config import (
     infer_soil_type,
 )
 from rotation_explorer.geo import farm_from_place
+from rotation_explorer.seo import app_route, asset_src
 from rotation_explorer.location_ui import hydrate_location, session_place
 from rotation_explorer.climate import climate_story
 from rotation_explorer.insights import (
@@ -252,15 +253,17 @@ def inject_css() -> None:
 
 
 def render_header() -> None:
+    explorer_url = app_route("/")
+    about_url = app_route("/About")
     st.markdown(
         f"""
         <nav class="topbar" aria-label="Main navigation">
-          <a class="brand" href="/" target="_self"><img class="brand-mark" src="/app/static/favicon.png" width="28" height="28" alt="">FIELD SHIFT <small>Rotation Explorer</small></a>
+          <a class="brand" href="{explorer_url}" target="_self"><img class="brand-mark" src="{asset_src('favicon.png')}" width="28" height="28" alt="">FIELD SHIFT <small>Rotation Explorer</small></a>
           <div class="toplinks">
             <a href="#field">FIELD</a>
             <a href="#climate">CLIMATE</a>
             <a href="#rotations">ROTATIONS</a>
-            <a href="/About">ABOUT</a>
+            <a href="{about_url}">ABOUT</a>
             <a class="pill-link" href="#rotations">Explore rotations <span>↗</span></a>
           </div>
         </nav>
@@ -321,7 +324,7 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
                 for row in saved
             }
             chosen_id = st.selectbox(
-                "Saved fields on this device",
+                "Saved field profiles",
                 [0] + list(labels),
                 format_func=lambda value: "Current session" if value == 0 else labels[value],
                 key="saved_field_id",
@@ -857,7 +860,7 @@ def render_extension_roster(setup: FarmSetup, top: RotationResult) -> None:
             "sms": sms_summary(setup, top, setup.language),
         }
         save_roster_entry(record)
-        st.toast(f"Saved {name} on this device.")
+        st.toast(f"Saved {name} to this app.")
         st.rerun()
 
     profiles = load_roster()

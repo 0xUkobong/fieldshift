@@ -1,0 +1,25 @@
+[Unit]
+Description=Field Shift Rotation Explorer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fieldshift
+Group=fieldshift
+WorkingDirectory=/srv/fieldshift
+Environment=FIELDSHIFT_PUBLIC_URL=https://fieldshift.cloud
+Environment=FIELDSHIFT_APP_BASE_PATH=explorer
+Environment=STREAMLIT_SERVER_HEADLESS=true
+Environment=STREAMLIT_SERVER_ADDRESS=127.0.0.1
+Environment=STREAMLIT_SERVER_PORT=8501
+Environment=STREAMLIT_SERVER_BASE_URL_PATH=explorer
+ExecStart=/srv/fieldshift/.venv/bin/streamlit run app.py
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/srv/fieldshift/data
+
+[Install]
+WantedBy=multi-user.target

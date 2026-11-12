@@ -1,25 +1,29 @@
-# Field Shift · Rotation Explorer
+# Field Shift
 
-> Farmer-facing crop rotation explorer using NASA POWER weather for a real field pin. NASA Space Apps Challenge 2026, challenge Field Shift: Adapting Farms with NASA Data.
+> A field-first crop rotation planner that combines NASA POWER climate records with a farmer's current crop and local priorities.
 
-Field Shift does not replace agronomists, soil tests, or on-farm observation. Scores are rule-based (water, soil, farmer priorities), not a black-box model. NASA does not endorse the recommendations.
+Field Shift is decision support for farmers and agricultural extension workers. It compares rotation options using transparent, rule-based scores and explains the climate evidence, benefits, and risks. It does not predict yield or replace local agronomic advice, soil tests, or field observation. NASA does not endorse the rotation scores.
 
-## Pages
+## Product
 
-- [Explorer](https://github.com/0xUkobong/fieldshift): Pin continent → country → state → local government → area, then compare rotations.
-- [About](/About): Who it is for and how to use it.
-- [Disclaimer](/Disclaimer): Decision support, no warranty, no NASA endorsement of scores.
-- [Privacy](/Privacy): Records stay on the device; POWER and Nominatim receive coordinates or search text.
-- [Data sources](/Data_sources): NASA POWER, OpenStreetMap Nominatim, ISO 3166 via pycountry.
+- Home: https://fieldshift.cloud/
+- Open the rotation explorer: https://fieldshift.cloud/explorer/
+- About: https://fieldshift.cloud/explorer/About
+- Data sources: https://fieldshift.cloud/explorer/Data_sources
+- Privacy: https://fieldshift.cloud/explorer/Privacy
+- Disclaimer: https://fieldshift.cloud/explorer/Disclaimer
 
-## Facts
+## Data and method
 
-- Climate API: NASA POWER daily point, agriculture community.
-- Parameters: T2M, T2M_MAX, T2M_MIN, PRECTOTCORR, ALLSKY_SFC_SW_DWN, RH2M.
-- Audience: smallholders, farm families, extension workers worldwide.
-- Languages for share cards: English, French, Kiswahili, Hausa.
-- Storage: local SQLite `data/fieldshift.db`, no cloud account.
+- Climate comes from NASA POWER daily point data for the selected field coordinates.
+- Inputs include location, current crop, soil context, climate period, and farmer priorities.
+- Scores compare water resilience, soil-health potential, and priority match. They are not yield estimates.
+- Place search and map naming use OpenStreetMap Nominatim. Map tiles and geographic names are attributed in the app.
+- Source and licensing details: https://fieldshift.cloud/explorer/Data_sources
 
-## Optional
+## Privacy and limits
 
-- Full project notes: https://github.com/0xUkobong/fieldshift
+- On the hosted service, saved field records and cached climate files are stored on the machine operated for fieldshift.cloud. The app has no user account system or self-service deletion control.
+- Coordinates are sent to NASA POWER for climate requests. Place search text or coordinates may be sent to OpenStreetMap Nominatim.
+- Do not enter confidential personal information. Read the privacy notice for storage and deletion details.
+- There is no field-level yield, soil-moisture, market-price, or irrigation dataset in this build.

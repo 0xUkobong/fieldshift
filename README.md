@@ -21,7 +21,7 @@ Live requests use the [NASA POWER](https://power.larc.nasa.gov/) daily point API
 - `T2M`, `T2M_MAX`, `T2M_MIN` — mean and extreme air temperature
 - `PRECTOTCORR` — corrected precipitation
 
-The default record is a rolling 7-year NASA POWER window. A successful fetch is saved under `data/power_cache/` so the same point still works offline. Saved fields and extension rosters stay in `data/fieldshift.db` on this device. Example cache packs are optional; the app starts with no field selected.
+The default record is a rolling 7-year NASA POWER window. A successful fetch is saved under `data/power_cache/` so the same point still works offline. Saved fields and extension rosters are stored in `data/fieldshift.db` on the machine running the app. Example cache packs are optional; the app starts with no field selected.
 
 This build does not include SMAP soil moisture or ECOSTRESS water-stress tiles.
 
@@ -38,7 +38,9 @@ streamlit run app.py
 
 Open [http://127.0.0.1:8501](http://127.0.0.1:8501).
 
-Favicon, logo, and Open Graph image are in `static/`. Set `FIELDSHIFT_PUBLIC_URL` to the live origin (for example `https://your-app.streamlit.app`) so canonical and social tags point at the deployed app. Crawler files: `static/robots.txt`, `static/sitemap.xml`, `static/llms.txt`.
+The public launch page is in `public/index.html`. It contains crawlable product information, descriptions, Open Graph/Twitter tags, and JSON-LD. Brand assets, crawler files, and the app's page metadata live in `static/` and `rotation_explorer/seo.py`.
+
+The production target is `https://fieldshift.cloud/`. The recommended Caddy front door serves the static landing page and root-level crawler files, and proxies the interactive Streamlit explorer at `/explorer/`. See [`deploy/README.md`](deploy/README.md) for the service and domain setup. In another hosting setup, set `FIELDSHIFT_PUBLIC_URL=https://fieldshift.cloud` and `FIELDSHIFT_APP_BASE_PATH=explorer`, then map `/`, `/assets/`, `/robots.txt`, `/sitemap.xml`, and `/llms.txt` as described there.
 
 ## Tests
 
@@ -69,7 +71,7 @@ tests/
 
 ## Share and languages
 
-After a comparison, the app can download an SMS/USSD text, a printable farmer card, and full comparison notes. Share text is available in English, French, Kiswahili, and Hausa. Extension-worker mode can save several farmers on this device and download their SMS lines together.
+After a comparison, the app can download an SMS/USSD text, a printable farmer card, and full comparison notes. Share text is available in English, French, Kiswahili, and Hausa. Extension-worker mode can save several field records in the app's database and download their SMS lines together. On a hosted deployment, those records are stored on the service's machine; see the privacy page before entering field information.
 
 ## Disclaimer
 

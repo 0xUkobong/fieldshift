@@ -1,10 +1,6 @@
 User-agent: *
 Allow: /
-Allow: /About
-Allow: /Disclaimer
-Allow: /Privacy
-Allow: /Data_sources
-Disallow: /_stcore/
+Disallow: /explorer/healthz
 
 User-agent: GPTBot
 Allow: /
@@ -27,4 +23,4 @@ Allow: /
 User-agent: Applebot-Extended
 Allow: /
 
-Sitemap: https://raw.githubusercontent.com/0xUkobong/fieldshift/main/static/sitemap.xml
+Sitemap: https://fieldshift.cloud/sitemap.xml

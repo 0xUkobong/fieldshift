@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Compare crop rotations using NASA POWER weather, your current crop, and local priorities. Clear, explained scores and risks for farmers and extension workers.">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <meta name="theme-color" content="#f5f5f5">
+  <link rel="canonical" href="https://fieldshift.cloud/">
+  <link rel="icon" href="/assets/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/assets/site.webmanifest">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Field Shift">
+  <meta property="og:title" content="Field Shift | Crop rotation planner for your farm">
+  <meta property="og:description" content="Compare crop rotations using NASA POWER weather, your current crop, and the priorities for your field.">
+  <meta property="og:url" content="https://fieldshift.cloud/">
+  <meta property="og:image" content="https://fieldshift.cloud/assets/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Field Shift crop rotation planner">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Field Shift | Crop rotation planner for your farm">
+  <meta name="twitter:description" content="Compare crop rotations using NASA POWER weather, your current crop, and the priorities for your field.">
+  <meta name="twitter:image" content="https://fieldshift.cloud/assets/og.png">
+  <title>Field Shift | Crop rotation planner for your farm</title>
+  <style>
+    :root { color-scheme: light; --canvas:#f5f5f5; --cream:#f8f4e6; --paper:#fff; --mist:#e9e9e9; --ink:#1e1e1f; --muted:#626263; --blue:#8ec7e2; --yellow:#f7ca50; --line:#d8d8d8; --sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"DM Mono",ui-monospace,Consolas,monospace; }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; background:var(--canvas); color:var(--ink); font:16px/1.55 var(--sans); }
+    a { color:inherit; }
+    .wrap { width:min(1240px,calc(100% - 48px)); margin:auto; }
+    .nav { display:flex; align-items:center; justify-content:space-between; gap:24px; margin:18px auto 0; padding:12px 16px; border-radius:3px; background:var(--mist); }
+    .wordmark { display:block; width:min(240px,48vw); height:auto; }
+    .navlinks { display:flex; align-items:center; gap:24px; font:12px/1.2 var(--mono); letter-spacing:.02em; text-transform:uppercase; }
+    .navlinks a { text-decoration:none; }
+    .navlinks a:hover,.text-link:hover { text-decoration:underline; text-underline-offset:4px; }
+    .pill { display:inline-flex; align-items:center; justify-content:center; gap:12px; min-height:44px; padding:10px 18px; border-radius:24px; background:var(--blue); color:#111; text-decoration:none; font-size:14px; transition:background .15s ease; }
+    .pill:hover { background:#a6d5e9; }
+    .pill span { display:grid; place-items:center; width:24px; height:24px; border-radius:50%; background:#ffffffaa; font-size:18px; }
+    .hero { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr); align-items:center; gap:clamp(32px,7vw,100px); padding:clamp(54px,9vw,112px) 0 72px; border-bottom:1px solid var(--line); }
+    .eyebrow { margin:0 0 16px; color:var(--muted); font:12px/1.4 var(--mono); letter-spacing:.07em; text-transform:uppercase; }
+    h1,h2,h3,p { margin-top:0; }
+    h1 { max-width:15ch; margin-bottom:18px; color:#111; font-size:clamp(44px,7vw,78px); font-weight:400; line-height:.99; letter-spacing:-.065em; text-wrap:balance; }
+    .lede { max-width:650px; margin-bottom:26px; color:#454546; font-size:clamp(18px,2vw,21px); line-height:1.45; letter-spacing:-.025em; }
+    .hero-side { padding:26px; border-radius:22px; background:var(--cream); }
+    .hero-side img { display:block; width:100%; height:auto; mix-blend-mode:multiply; }
+    .hero-side p { margin:18px 0 0; color:var(--muted); font-size:14px; }
+    .facts { display:flex; flex-wrap:wrap; gap:10px; margin-top:30px; }
+    .fact { padding:8px 12px; border-radius:22px; background:var(--mist); font-size:13px; }
+    .section { padding:72px 0; border-bottom:1px solid var(--line); }
+    .section h2 { max-width:18ch; margin-bottom:14px; color:#111; font-size:clamp(32px,4.5vw,52px); font-weight:400; line-height:1.06; letter-spacing:-.055em; text-wrap:balance; }
+    .intro { max-width:720px; color:#454546; font-size:18px; }
+    .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-top:30px; }
+    .card { padding:22px; border-radius:22px; background:var(--paper); }
+    .card .num { display:grid; place-items:center; width:32px; height:32px; margin-bottom:26px; border-radius:50%; background:var(--yellow); font:12px var(--mono); }
+    .card h3 { margin-bottom:8px; font-size:21px; font-weight:500; letter-spacing:-.04em; }
+    .card p { margin-bottom:0; color:var(--muted); font-size:15px; }
+    .detail { display:grid; grid-template-columns:1fr 1fr; gap:48px; align-items:start; }
+    .detail p { max-width:620px; color:var(--muted); }
+    .source-list { margin:0; padding:0; list-style:none; }
+    .source-list li { padding:14px 0; border-top:1px solid var(--line); }
+    .source-list a { text-underline-offset:3px; }
+    .faq { max-width:860px; }
+    details { padding:18px 0; border-top:1px solid var(--line); }
+    summary { color:#111; font-size:18px; cursor:pointer; }
+    details p { max-width:700px; margin:12px 0 0; color:var(--muted); }
+    .closing { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:24px; padding:44px 0 70px; }
+    .closing p { max-width:620px; margin:0; color:var(--muted); }
+    footer { display:flex; flex-wrap:wrap; justify-content:space-between; gap:16px; padding:20px 0 32px; border-top:1px solid var(--line); color:var(--muted); font:12px/1.5 var(--mono); }
+    footer nav { display:flex; flex-wrap:wrap; gap:16px; }
+    footer a { text-underline-offset:3px; }
+    @media(max-width:760px) { .wrap { width:min(100% - 32px,640px); }.nav { margin-top:10px; }.navlinks a:not(.pill) { display:none; }.hero { grid-template-columns:1fr; padding:60px 0 48px; }.hero-side { max-width:480px; }.grid { grid-template-columns:1fr; }.card .num { margin-bottom:16px; }.section { padding:52px 0; }.detail { grid-template-columns:1fr; gap:20px; } }
+    @media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } *,*::before,*::after { transition:none!important; } }
+  </style>
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@graph":[
+      {"@type":"Organization","@id":"https://fieldshift.cloud/#organization","name":"Field Shift","url":"https://fieldshift.cloud/","logo":"https://fieldshift.cloud/assets/icon-512.png","sameAs":["https://github.com/0xUkobong/fieldshift"]},
+      {"@type":"WebSite","@id":"https://fieldshift.cloud/#website","name":"Field Shift","url":"https://fieldshift.cloud/","inLanguage":"en","publisher":{"@id":"https://fieldshift.cloud/#organization"}},
+      {"@type":"WebApplication","@id":"https://fieldshift.cloud/#application","name":"Field Shift Rotation Explorer","url":"https://fieldshift.cloud/explorer/","applicationCategory":"AgricultureApplication","operatingSystem":"Web browser","isAccessibleForFree":true,"description":"Compare crop rotations using NASA POWER weather, your current crop, and local priorities. Clear, explained scores and risks for farmers and extension workers.","audience":{"@type":"Audience","audienceType":"Farmers and agricultural extension workers"},"creator":{"@id":"https://fieldshift.cloud/#organization"},"areaServed":{"@type":"Place","name":"Worldwide"},"image":"https://fieldshift.cloud/assets/og.png"},
+      {"@type":"WebPage","@id":"https://fieldshift.cloud/#home","url":"https://fieldshift.cloud/","name":"Field Shift | Crop rotation planner for your farm","description":"Compare crop rotations using NASA POWER weather, your current crop, and local priorities. Clear, explained scores and risks for farmers and extension workers.","isPartOf":{"@id":"https://fieldshift.cloud/#website"},"about":{"@id":"https://fieldshift.cloud/#application"},"inLanguage":"en"},
+      {"@type":"FAQPage","mainEntity":[
+        {"@type":"Question","name":"What does Field Shift do?","acceptedAnswer":{"@type":"Answer","text":"Field Shift compares crop-rotation options for a chosen field using NASA POWER climate records, the current crop, and the farmer's priorities. It explains the scores, benefits, and risks."}},
+        {"@type":"Question","name":"Does Field Shift predict crop yield?","acceptedAnswer":{"@type":"Answer","text":"No. The current app uses NASA POWER rainfall and temperature and does not provide crop-yield predictions or yield benchmarks."}},
+        {"@type":"Question","name":"Does Field Shift replace local agronomic advice?","acceptedAnswer":{"@type":"Answer","text":"No. Its scores are decision-support prompts. Confirm them with field observations, soil tests, and local agronomic advice. NASA does not endorse the scores."}},
+        {"@type":"Question","name":"What data does Field Shift use?","acceptedAnswer":{"@type":"Answer","text":"The app requests daily rainfall and temperature for the selected coordinates from NASA POWER. Place search and map naming use OpenStreetMap Nominatim."}}
+      ]}
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="wrap nav">
+    <a href="/" aria-label="Field Shift home"><img class="wordmark" src="/assets/logo.png" alt="Field Shift — Rotation Explorer"></a>
+    <nav class="navlinks" aria-label="Main navigation">
+      <a href="#how-it-works">How it works</a>
+      <a href="#data">Data</a>
+      <a href="#questions">Questions</a>
+      <a class="pill" href="/explorer/">Open the field tool <span aria-hidden="true">↗</span></a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="wrap hero" aria-labelledby="hero-title">
+      <div>
+        <p class="eyebrow">A field-first crop rotation planner</p>
+        <h1 id="hero-title">Plan rotations around the field you farm.</h1>
+        <p class="lede">Compare crop-rotation options using local climate, your current crop, and what matters on your land. The reasoning stays visible so you can weigh it with your own experience.</p>
+        <a class="pill" href="/explorer/">Choose a field <span aria-hidden="true">↗</span></a>
+        <div class="facts" aria-label="Product facts">
+          <span class="fact">NASA POWER climate</span>
+          <span class="fact">Explained scores</span>
+          <span class="fact">No yield prediction</span>
+        </div>
+      </div>
+      <aside class="hero-side">
+        <img src="/assets/favicon.png" alt="Field Shift field and rotation mark" width="512" height="512">
+        <p>Decision support for farmers and extension workers. Local knowledge and field observation come first.</p>
+      </aside>
+    </section>
+
+    <section class="wrap section" id="how-it-works" aria-labelledby="how-title">
+      <p class="eyebrow">A clear path from place to options</p>
+      <h2 id="how-title">Start with your conditions.</h2>
+      <p class="intro">Field Shift uses the same information you use to make a farm decision: where the field is, what grows there now, and what you want a rotation to improve.</p>
+      <div class="grid">
+        <article class="card"><span class="num">01</span><h3>Locate the field</h3><p>Search for a place, choose a region, or pin coordinates. Climate is fetched for that location.</p></article>
+        <article class="card"><span class="num">02</span><h3>Set crop and priorities</h3><p>Choose the current crop, climate period, soil context, and goals such as water resilience, soil cover, or natural nitrogen.</p></article>
+        <article class="card"><span class="num">03</span><h3>Compare rotations</h3><p>Review a familiar baseline and alternatives with clear scores, climate context, benefits, risks, and data limits.</p></article>
+      </div>
+    </section>
+
+    <section class="wrap section detail" id="data" aria-labelledby="data-title">
+      <div>
+        <p class="eyebrow">Climate, with sources shown</p>
+        <h2 id="data-title">Useful context, without pretending to predict a harvest.</h2>
+        <p>The explorer uses NASA POWER daily rainfall and temperature for a selected point. It compares the climate record with crop and farmer priorities using explicit rules. It does not calculate field-level yield, soil moisture, prices, or irrigation demand.</p>
+        <p>Scores are a starting point for discussion. Check them against field observations, local soil tests, and advice from people who know the area. NASA provides the weather data and does not endorse the rotation scores.</p>
+        <a class="text-link" href="/explorer/Data_sources">Read the data and license notes</a>
+      </div>
+      <ul class="source-list" aria-label="Data sources">
+        <li><strong>Climate</strong><br><a href="https://power.larc.nasa.gov/">NASA Langley Research Center POWER Project</a></li>
+        <li><strong>Place search</strong><br><a href="https://operations.osmfoundation.org/policies/nominatim/">OpenStreetMap Nominatim</a></li>
+        <li><strong>Map</strong><br><a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a></li>
+      </ul>
+    </section>
+
+    <section class="wrap section faq" id="questions" aria-labelledby="faq-title">
+      <p class="eyebrow">Before you use a score</p>
+      <h2 id="faq-title">Common questions</h2>
+      <details><summary>Does Field Shift predict crop yield?</summary><p>No. It compares weather context and rotation characteristics. It does not estimate harvest yield or provide yield benchmarks.</p></details>
+      <details><summary>Does it replace an agronomist or extension worker?</summary><p>No. Use the comparison as a conversation aid and check it with field observations, soil tests, and local agronomic advice.</p></details>
+      <details><summary>Where is field information stored?</summary><p>On fieldshift.cloud, saved field records and cached climate files are stored on the server that runs the app. The app has no user account system. Do not enter confidential personal information. See the <a href="/explorer/Privacy">privacy notice</a>.</p></details>
+      <details><summary>What information is sent to data providers?</summary><p>NASA POWER receives the selected field coordinates and climate date range. OpenStreetMap Nominatim may receive the place-search text or coordinates used to name a map pin.</p></details>
+    </section>
+
+    <section class="wrap closing">
+      <div><p class="eyebrow">Ready to compare?</p><p>Bring your crop, your field, and what you know about the land.</p></div>
+      <a class="pill" href="/explorer/">Open Field Shift <span aria-hidden="true">↗</span></a>
+    </section>
+  </main>
+
+  <footer class="wrap">
+    <span>Field Shift · Crop rotation decision support</span>
+    <nav aria-label="Project information">
+      <a href="/explorer/About">About</a>
+      <a href="/explorer/Data_sources">Data sources</a>
+      <a href="/explorer/Privacy">Privacy</a>
+      <a href="/explorer/Disclaimer">Disclaimer</a>
+    </nav>
+  </footer>
+</body>
+</html>
