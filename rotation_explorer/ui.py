@@ -6,7 +6,6 @@ from html import escape
 import math
 
 import pandas as pd
-import pydeck as pdk
 import streamlit as st
 
 from rotation_explorer.charts import (
@@ -17,8 +16,6 @@ from rotation_explorer.charts import (
 from rotation_explorer.cache import cached_points, is_cached
 from rotation_explorer.config import (
     CROPS,
-    DEFAULT_PRIORITIES,
-    FARMS_BY_NAME,
     HEAT_STRESS_C,
     LANGUAGES,
     POWER_YEAR_MAX,
@@ -35,6 +32,8 @@ from rotation_explorer.config import (
     WATER_WEIGHT,
     infer_soil_type,
 )
+from rotation_explorer.geo import farm_from_place
+from rotation_explorer.location_ui import hydrate_location, session_place
 from rotation_explorer.climate import climate_story
 from rotation_explorer.insights import (
     RiskFlag,
@@ -45,6 +44,14 @@ from rotation_explorer.insights import (
 )
 from rotation_explorer.models import ClimateSummary, Farm, FarmSetup, RotationResult
 from rotation_explorer.report import comparison_report, rotation_csv_report
+from rotation_explorer.store import (
+    list_fields,
+    load_field,
+    load_last_setup,
+    load_roster,
+    save_field,
+    save_roster_entry,
+)
 
 NEXT_STEPS = {
     ROTATION_CURRENT: (
@@ -78,7 +85,6 @@ ROTATION_META = {
     ROTATION_AGROFORESTRY: ("Trees", "Long-term soil & shade"),
     ROTATION_INTERCROP: ("Mixed", "Two crops, one season"),
 }
-CUSTOM_LOCATION = "Enter coordinates"
 
 APP_CSS = """
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono&family=DM+Sans:wght@400;500;600&display=swap');
@@ -87,6 +93,18 @@ html,body,[class*="css"] { font-family:var(--body); color:var(--ink); }
 .stApp { background:var(--canvas); color:var(--ink); }
 .block-container { max-width:100%; padding:1.2rem clamp(1.2rem,3.2vw,3.5rem) 4rem; }
 #MainMenu,footer,.stDeployButton,.stAppDeployButton { visibility:hidden; }
+[data-testid="stSidebarNav"] { display:none !important; }
+.legal { max-width:44rem; }
+.legal h2 { margin:2.2rem 0 .6rem; color:var(--carbon); font-size:1.45rem; font-weight:400; letter-spacing:-.05em; }
+.legal p,.legal li { color:#454546; font-size:.95rem; line-height:1.55; }
+.legal ul { padding-left:1.15rem; }
+.legal a { color:var(--ink); }
+.site-foot { display:flex; flex-wrap:wrap; gap:.85rem 1.4rem; align-items:center; margin-top:2.4rem; padding-top:1rem; border-top:1px solid var(--line); }
+.site-foot a { color:var(--ink)!important; text-decoration:none!important; font-family:var(--mono); font-size:.68rem; letter-spacing:.03em; text-transform:uppercase; }
+.site-foot a:hover { text-decoration:underline!important; text-underline-offset:3px; }
+div[data-testid="stPageLink"] a { color:var(--ink)!important; text-decoration:none!important; font-family:var(--mono); font-size:.7rem; letter-spacing:.03em; text-transform:uppercase; }
+.site-foot .copy { margin-left:auto; color:var(--muted); font-family:var(--mono); font-size:.65rem; line-height:1.4; }
+.legal-page section[data-testid="stSidebar"] { display:none !important; }
 header[data-testid="stHeader"] { background:transparent; }
 header button[data-testid="stSidebarCollapsedControl"] { visibility:visible!important; opacity:1!important; background:var(--blue)!important; border:0!important; border-radius:22px!important; color:var(--carbon)!important; }
 header button[data-testid="stSidebarCollapsedControl"]:hover { background:#a6d5e9!important; }
@@ -99,7 +117,8 @@ section[data-testid="stSidebar"] [data-baseweb="tag"],section[data-testid="stSid
 section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p { color:var(--ink)!important; font-size:.9rem; }
 section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { line-height:1.45; }
 .topbar { display:flex; align-items:center; justify-content:space-between; gap:1.5rem; padding:.65rem .85rem; margin-bottom:1.7rem; background:var(--mist); border-radius:3px; }
-.brand { display:flex; align-items:baseline; gap:.65rem; color:var(--carbon); font-size:1rem; font-weight:600; letter-spacing:-.05em; text-decoration:none; }
+.brand { display:flex; align-items:center; gap:.65rem; color:var(--carbon); font-size:1rem; font-weight:600; letter-spacing:-.05em; text-decoration:none; }
+.brand-mark { width:28px; height:28px; border-radius:7px; display:block; object-fit:cover; }
 .brand small { font-family:var(--mono); font-size:.65rem; font-weight:400; letter-spacing:.015em; text-transform:uppercase; color:var(--muted); }
 .toplinks { display:flex; align-items:center; gap:clamp(.75rem,2vw,2rem); }
 .toplinks a { color:var(--ink)!important; text-decoration:none!important; font-family:var(--mono); font-size:.7rem; letter-spacing:.025em; }
@@ -125,6 +144,7 @@ section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { line-he
 .fact+.fact { padding-left:1.1rem; border-left:1px solid var(--line); }
 .fact span { display:block; margin-bottom:.38rem; color:var(--muted); font-family:var(--mono); font-size:.67rem; letter-spacing:.04em; text-transform:uppercase; }
 .fact strong { display:block; color:var(--ink); font-size:1rem; font-weight:500; letter-spacing:-.03em; line-height:1.4; }
+.fact small { display:block; margin-top:.25rem; color:var(--muted); font-size:.78rem; font-weight:400; line-height:1.35; text-transform:none; letter-spacing:-.01em; }
 .fact.note strong { font-size:.88rem; font-weight:400; }
 .section-head { display:flex; align-items:end; justify-content:space-between; gap:1.25rem; margin:3.8rem 0 1.1rem; scroll-margin-top:1rem; }
 .section-head h2 { margin:0; color:var(--carbon); font-size:clamp(1.7rem,2.6vw,2.7rem); font-weight:400; line-height:1.08; letter-spacing:-.06em; text-wrap:balance; }
@@ -235,12 +255,12 @@ def render_header() -> None:
     st.markdown(
         f"""
         <nav class="topbar" aria-label="Main navigation">
-          <a class="brand" href="#overview">FIELD SHIFT <small>Rotation Explorer</small></a>
+          <a class="brand" href="/" target="_self"><img class="brand-mark" src="/app/static/favicon.png" width="28" height="28" alt="">FIELD SHIFT <small>Rotation Explorer</small></a>
           <div class="toplinks">
             <a href="#field">FIELD</a>
             <a href="#climate">CLIMATE</a>
             <a href="#rotations">ROTATIONS</a>
-            <a href="#method">HOW IT WORKS</a>
+            <a href="/About">ABOUT</a>
             <a class="pill-link" href="#rotations">Explore rotations <span>↗</span></a>
           </div>
         </nav>
@@ -248,9 +268,9 @@ def render_header() -> None:
           <div>
             <div class="kicker">Crop rotation, with local climate in context</div>
             <h1 id="overview">Compare rotations for the field you farm.</h1>
-            <p class="lede">Set your field, crop, and goals. Then compare three rotations against recent NASA weather — starting with a recommended conversation, not a prescription.</p>
+            <p class="lede">Name the real place — continent, country, state, local government, area — then set crop and goals. NASA weather loads for that pin, not a sample farm.</p>
             <div class="steps" aria-label="How to use Rotation Explorer">
-              <span class="step"><b>1</b> Choose a field</span>
+              <span class="step"><b>1</b> Locate the field</span>
               <span class="step"><b>2</b> Set crop and goals</span>
               <span class="step"><b>3</b> Apply and compare</span>
             </div>
@@ -266,110 +286,85 @@ def render_header() -> None:
 
 
 def render_sidebar() -> tuple[FarmSetup | None, bool]:
-    default_farm = next(iter(FARMS_BY_NAME.values()))
-    default_setup = FarmSetup(
-        farm=default_farm,
-        crop=default_farm.typical_crop,
-        priorities=DEFAULT_PRIORITIES,
-    )
-    st.session_state.setdefault("applied_setup", default_setup)
-    st.session_state.setdefault("location_choice", default_farm.name)
-    st.session_state.setdefault("last_location_choice", default_farm.name)
-    st.session_state.setdefault("field_crop", default_setup.crop)
-    st.session_state.setdefault("farm_priorities", list(DEFAULT_PRIORITIES))
+    if "applied_setup" not in st.session_state:
+        last = load_last_setup()
+        st.session_state["applied_setup"] = last
+        if last:
+            hydrate_location(last.farm)
+            st.session_state["field_crop"] = last.crop
+            st.session_state["farm_priorities"] = list(last.priorities)
+            st.session_state["farmer_name"] = last.farmer_name
+            st.session_state["extra_local_tip"] = last.local_tip
+            st.session_state["field_soil_type"] = last.soil_type
+            saved_yield = last.observed_yield_t_ha
+            st.session_state["observed_yield"] = "" if saved_yield is None else str(saved_yield)
+
+    st.session_state.setdefault("field_crop", "Maize")
+    st.session_state.setdefault("farm_priorities", [])
     st.session_state.setdefault("climate_period", (POWER_YEAR_MIN, POWER_YEAR_MAX))
     st.session_state.setdefault("applied_climate_period", (POWER_YEAR_MIN, POWER_YEAR_MAX))
     st.session_state.setdefault("observed_yield", "")
-    st.session_state.setdefault("custom_farm_name", "")
-    st.session_state.setdefault("custom_lat", 10.5)
-    st.session_state.setdefault("custom_lon", -1.2)
     st.session_state.setdefault("custom_soil_note", "")
     st.session_state.setdefault("work_mode", "Farmer")
     st.session_state.setdefault("share_language", "en")
-    st.session_state.setdefault(
-        "low_bandwidth",
-        is_cached(default_farm.lat, default_farm.lon),
-    )
+    st.session_state.setdefault("low_bandwidth", False)
     st.session_state.setdefault("farmer_name", "")
     st.session_state.setdefault("extra_local_tip", "")
-    st.session_state.setdefault("profiles", [])
+    st.session_state.setdefault("field_soil_type", "Auto (from site)")
 
     with st.sidebar:
-        st.markdown("### Set your field context")
-        st.caption("Choose a demo site or use coordinates for your own field.")
-        location_choice = st.selectbox(
-            "Location",
-            [*FARMS_BY_NAME, CUSTOM_LOCATION],
-            key="location_choice",
-        )
-        if location_choice != st.session_state["last_location_choice"]:
-            if location_choice in FARMS_BY_NAME:
-                st.session_state["field_crop"] = FARMS_BY_NAME[location_choice].typical_crop
-            else:
-                st.session_state["field_crop"] = st.session_state["applied_setup"].crop
-            st.session_state["last_location_choice"] = location_choice
+        st.markdown("### Field context")
+        saved = list_fields()
+        if saved:
+            labels = {
+                row["id"]: f"{row['name']} · {row['country'] or row['region']}"
+                for row in saved
+            }
+            chosen_id = st.selectbox(
+                "Saved fields on this device",
+                [0] + list(labels),
+                format_func=lambda value: "Current session" if value == 0 else labels[value],
+                key="saved_field_id",
+            )
+            if chosen_id and st.button("Open saved field"):
+                loaded = load_field(int(chosen_id))
+                if loaded:
+                    st.session_state["applied_setup"] = loaded
+                    hydrate_location(loaded.farm)
+                    st.session_state["field_crop"] = loaded.crop
+                    st.session_state["farm_priorities"] = list(loaded.priorities)
+                    st.session_state["farmer_name"] = loaded.farmer_name
+                    st.session_state["extra_local_tip"] = loaded.local_tip
+                    st.session_state["field_soil_type"] = loaded.soil_type
+                    saved_yield = loaded.observed_yield_t_ha
+                    st.session_state["observed_yield"] = (
+                        "" if saved_yield is None else str(saved_yield)
+                    )
+                    st.session_state["climate_request_attempted"] = False
+                    st.rerun()
+        else:
+            st.caption("No saved fields yet. Apply a comparison to keep this field on the device.")
 
-        applied = st.session_state["applied_setup"]
-        pending_location = (
-            CUSTOM_LOCATION
-            if applied.farm.region == "Custom coordinates"
-            else applied.farm.name
-        )
+        place = session_place()
+        if place.has_point():
+            st.caption(place.region_label())
+        else:
+            st.caption("Set the field location on the map first.")
+
         submitted = False
         with st.form("field_setup", border=False):
-            if location_choice == CUSTOM_LOCATION:
-                farm_name = st.text_input(
-                    "Farm or area name",
-                    placeholder="e.g. Kano North",
-                    key="custom_farm_name",
-                    max_chars=60,
-                )
-                latitude_col, longitude_col = st.columns(2)
-                with latitude_col:
-                    latitude = st.number_input(
-                        "Latitude",
-                        min_value=-90.0,
-                        max_value=90.0,
-                        step=0.1,
-                        format="%.2f",
-                        key="custom_lat",
-                        help="Decimal degrees, from −90 to 90.",
-                    )
-                with longitude_col:
-                    longitude = st.number_input(
-                        "Longitude",
-                        min_value=-180.0,
-                        max_value=180.0,
-                        step=0.1,
-                        format="%.2f",
-                        key="custom_lon",
-                        help="Decimal degrees, from −180 to 180.",
-                    )
-                soil_note = st.text_input(
-                    "Soil notes (optional)",
-                    placeholder="e.g. sandy loam, low organic matter",
-                    key="custom_soil_note",
-                    max_chars=120,
-                )
-                farm = Farm(
-                    name=farm_name.strip() or "Custom field",
-                    lat=latitude,
-                    lon=longitude,
-                    region="Custom coordinates",
-                    soil_note=soil_note.strip()
-                    or "Field-specific soil information has not been provided.",
-                    typical_crop=st.session_state["field_crop"],
-                )
-            else:
-                farm = FARMS_BY_NAME[location_choice]
-                st.caption(f"{farm.region} · {farm.lat:.2f}°, {farm.lon:.2f}°")
-
             crop = st.selectbox("Current main crop", list(CROPS), key="field_crop")
             soil_choice = st.selectbox(
                 "Soil texture",
                 list(SOIL_TYPES),
                 key="field_soil_type",
                 help="Auto infers texture from the site description; override if you know your field's soil.",
+            )
+            soil_note = st.text_input(
+                "Soil notes (optional)",
+                placeholder="e.g. sandy loam, low organic matter",
+                key="custom_soil_note",
+                max_chars=120,
             )
             climate_period = st.slider(
                 "Climate period",
@@ -417,19 +412,30 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
                     raise ValueError
             except ValueError:
                 st.error("Enter a valid yield of 0 or more, or leave the field blank.")
-                return None, False
+                return st.session_state.get("applied_setup"), False
 
         if submitted and not priorities:
             st.error("Choose at least one priority to update the comparison.")
-            return None, False
+            return st.session_state.get("applied_setup"), False
 
         if submitted:
+            place = session_place()
+            if not place.has_point():
+                st.error("Pin a field location before comparing rotations.")
+                return st.session_state.get("applied_setup"), False
+            farm = farm_from_place(
+                place,
+                name=st.session_state.get("field_name") or place.suggested_name(),
+                crop=crop,
+                soil_note=soil_note,
+                local_tip=st.session_state.get("extra_local_tip", ""),
+            )
             resolved_soil = (
                 infer_soil_type(farm.soil_note)
                 if soil_choice == "Auto (from site)"
                 else soil_choice
             )
-            st.session_state["applied_setup"] = FarmSetup(
+            setup = FarmSetup(
                 farm=farm,
                 crop=crop,
                 priorities=tuple(priorities),
@@ -439,20 +445,31 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
                 observed_yield_t_ha=observed_yield,
                 soil_type=resolved_soil,
             )
+            st.session_state["applied_setup"] = setup
             st.session_state["applied_climate_period"] = tuple(climate_period)
+            save_field(setup)
 
-        applied = st.session_state["applied_setup"]
-        applied_location = CUSTOM_LOCATION if applied.farm.region == "Custom coordinates" else applied.farm.name
-        if (
-            st.session_state.get("location_choice", applied_location) != applied_location
-            or st.session_state.get("field_crop", applied.crop) != applied.crop
-            or tuple(st.session_state.get("farm_priorities", applied.priorities)) != tuple(applied.priorities)
-            or tuple(st.session_state.get("climate_period", (POWER_YEAR_MIN, POWER_YEAR_MAX))) != tuple(st.session_state["applied_climate_period"])
-        ):
-            st.markdown(
-                '<p class="dirty">Field settings changed. Apply to refresh the comparison.</p>',
-                unsafe_allow_html=True,
+        applied = st.session_state.get("applied_setup")
+        if applied:
+            place = session_place()
+            moved = place.has_point() and (
+                abs(place.lat - applied.farm.lat) > 0.0001
+                or abs(place.lon - applied.farm.lon) > 0.0001
             )
+            if (
+                moved
+                or st.session_state.get("field_crop", applied.crop) != applied.crop
+                or tuple(st.session_state.get("farm_priorities", applied.priorities))
+                != tuple(applied.priorities)
+                or tuple(
+                    st.session_state.get("climate_period", (POWER_YEAR_MIN, POWER_YEAR_MAX))
+                )
+                != tuple(st.session_state["applied_climate_period"])
+            ):
+                st.markdown(
+                    '<p class="dirty">Field settings changed. Apply to refresh the comparison.</p>',
+                    unsafe_allow_html=True,
+                )
 
         st.markdown("---")
         st.markdown("**Climate data**")
@@ -462,10 +479,9 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
             "T2M, T2M_MAX, T2M_MIN, PRECTOTCORR, ALLSKY_SFC_SW_DWN, RH2M · Community AG."
         )
         st.caption(f"Offline packs on this device: {packs}")
-        applied = st.session_state["applied_setup"]
-        if is_cached(applied.farm.lat, applied.farm.lon):
+        if applied and is_cached(applied.farm.lat, applied.farm.lon):
             st.caption("Current field: saved for offline use.")
-        else:
+        elif applied:
             st.caption("Current field: will save a pack after the next successful live fetch.")
 
         with st.expander("Sharing and data options"):
@@ -487,7 +503,7 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
                 help="Loads a saved point quickly and works offline. Turn off to request a fresh NASA POWER series when you apply.",
             )
 
-        profiles = st.session_state.get("profiles", [])
+        profiles = load_roster()
         if st.session_state["work_mode"] == "Extension worker" and profiles:
             names = [item["farmer_name"] for item in profiles]
             chosen = st.selectbox("Load a saved farmer", ["—"] + names)
@@ -502,6 +518,12 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
                     typical_crop=record["crop"],
                     local_tip=record.get("local_tip", ""),
                     agrozone=record.get("agrozone", ""),
+                    continent=record.get("continent", ""),
+                    country=record.get("country", ""),
+                    country_code=record.get("country_code", ""),
+                    state=record.get("state", ""),
+                    lga=record.get("lga", ""),
+                    area=record.get("area", ""),
                 )
                 st.session_state["applied_setup"] = FarmSetup(
                     farm=farm,
@@ -512,122 +534,13 @@ def render_sidebar() -> tuple[FarmSetup | None, bool]:
                     language=st.session_state.get("share_language", "en"),
                     observed_yield_t_ha=record.get("observed_yield_t_ha"),
                 )
+                hydrate_location(farm)
                 saved_yield = record.get("observed_yield_t_ha")
                 st.session_state["observed_yield"] = "" if saved_yield is None else str(saved_yield)
                 st.session_state["climate_request_attempted"] = False
                 st.rerun()
 
-    return st.session_state["applied_setup"], submitted
-
-
-def _select_farm_from_map() -> None:
-    chart_state = st.session_state.get("field_location_map")
-    if not chart_state:
-        return
-    selection = chart_state.get("selection", {})
-    picked = selection.get("objects", {}).get("field-locations", [])
-    if picked and picked[0].get("name") in FARMS_BY_NAME:
-        st.session_state["location_choice"] = picked[0]["name"]
-
-
-def render_location_map(setup: FarmSetup) -> None:
-    choice = st.session_state.get("location_choice", setup.farm.name)
-    points = [
-        {
-            "name": farm.name,
-            "region": farm.region,
-            "lat": farm.lat,
-            "lon": farm.lon,
-            "color": [142, 199, 226, 235]
-            if choice == farm.name
-            else [30, 30, 31, 155],
-        }
-        for farm in FARMS_BY_NAME.values()
-    ]
-    if choice == CUSTOM_LOCATION:
-        custom_name = st.session_state.get("custom_farm_name", "").strip()
-        points.append(
-            {
-                "name": custom_name or "Your field",
-                "region": "Custom coordinates",
-                "lat": st.session_state.get("custom_lat", setup.farm.lat),
-                "lon": st.session_state.get("custom_lon", setup.farm.lon),
-                "color": [247, 202, 80, 255],
-            }
-        )
-
-    layer = pdk.Layer(
-        "ScatterplotLayer",
-        data=points,
-        id="field-locations",
-        get_position="[lon, lat]",
-        get_radius=72000,
-        radius_min_pixels=6,
-        radius_max_pixels=17,
-        get_fill_color="color",
-        pickable=True,
-        auto_highlight=True,
-        stroked=True,
-        get_line_color=[30, 30, 31, 210],
-        line_width_min_pixels=1,
-    )
-    deck = pdk.Deck(
-        layers=[layer],
-        initial_view_state=pdk.ViewState(
-            latitude=22,
-            longitude=-30,
-            zoom=1.05,
-            pitch=0,
-        ),
-        map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-        tooltip={"text": "{name}\n{region}"},
-    )
-
-    st.markdown(
-        """
-        <div class="section-head stacked" id="field">
-          <h2>Choose a field location</h2>
-          <p>Select a marked demo site, or enter coordinates in the field setup.</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    map_col, note_col = st.columns((1.45, 0.55), gap="large")
-    with map_col:
-        st.pydeck_chart(
-            deck,
-            height=330,
-            on_select=_select_farm_from_map,
-            selection_mode="single-object",
-            key="field_location_map",
-            alt="Map of demo farm locations. Select a marker to choose that field.",
-        )
-    with note_col:
-        if choice in FARMS_BY_NAME:
-            selected = FARMS_BY_NAME[choice]
-            label = selected.name
-            coordinates = f"{selected.lat:.2f}°, {selected.lon:.2f}°"
-            region = selected.region
-        else:
-            label = st.session_state.get("custom_farm_name", "").strip() or "Your field"
-            coordinates = (
-                f"{st.session_state.get('custom_lat', setup.farm.lat):.2f}°, "
-                f"{st.session_state.get('custom_lon', setup.farm.lon):.2f}°"
-            )
-            region = "Custom coordinates"
-        st.markdown(
-            f"""
-            <div class="map-panel">
-              <span class="eyebrow">Selected point</span>
-              <h3>{escape(label)}</h3>
-              <p>{escape(region)}</p>
-              <strong>{escape(coordinates)}</strong>
-              <hr>
-              <p>Click a blue marker to switch to a demo site. For any other field, choose <em>Enter coordinates</em> in the setup panel.</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    return st.session_state.get("applied_setup"), submitted
 
 
 def render_farm_chip(setup: FarmSetup) -> None:
@@ -651,7 +564,7 @@ def render_farm_chip(setup: FarmSetup) -> None:
     st.markdown(
         f"""
         <div class="facts">
-          <div class="fact"><span>Location</span><strong>{escape(farm.name)}</strong></div>
+          <div class="fact"><span>Location</span><strong>{escape(farm.name)}</strong><small>{escape(farm.region)}</small></div>
           <div class="fact"><span>Current crop</span><strong>{escape(setup.crop)}</strong></div>
           <div class="fact"><span>Last harvest yield</span><strong>{escape(yield_fact)}</strong></div>
           <div class="fact note"><span>Soils / zone</span><strong>{escape(setup.soil_type)} · {escape(farm.agrozone or farm.soil_note)}</strong></div>
@@ -932,22 +845,22 @@ def render_extension_roster(setup: FarmSetup, top: RotationResult) -> None:
             "local_tip": setup.local_tip or setup.farm.local_tip,
             "soil_note": setup.farm.soil_note,
             "agrozone": setup.farm.agrozone,
+            "continent": setup.farm.continent,
+            "country": setup.farm.country,
+            "country_code": setup.farm.country_code,
+            "state": setup.farm.state,
+            "lga": setup.farm.lga,
+            "area": setup.farm.area,
             "observed_yield_t_ha": setup.observed_yield_t_ha,
             "top_rotation": top.name,
             "score": top.score,
             "sms": sms_summary(setup, top, setup.language),
         }
-        profiles = [
-            item
-            for item in st.session_state.get("profiles", [])
-            if item["farmer_name"] != name
-        ]
-        profiles.append(record)
-        st.session_state["profiles"] = profiles
+        save_roster_entry(record)
         st.toast(f"Saved {name} on this device.")
         st.rerun()
 
-    profiles = st.session_state.get("profiles", [])
+    profiles = load_roster()
     if not profiles:
         st.caption("No farmers saved yet. Apply a comparison, then save.")
         return
@@ -1069,8 +982,6 @@ def render_method_and_glossary() -> None:
             """
         )
 
-    st.markdown(
-        '<p class="foot">Rotation Explorer · NASA Space Apps Challenge 2026 · '
-        "Data courtesy of NASA Langley Research Center POWER Project.</p>",
-        unsafe_allow_html=True,
-    )
+    from rotation_explorer.site import render_footer
+
+    render_footer()

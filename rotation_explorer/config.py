@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -34,60 +35,84 @@ WATER_WEIGHT = 0.4
 SOIL_WEIGHT = 0.3
 PRIORITY_WEIGHT = 0.3
 
-DEMO_FARMS: tuple[Farm, ...] = (
+EXAMPLE_FIELDS: tuple[Farm, ...] = (
     Farm(
         name="Iowa Corn Belt",
         lat=42.0,
         lon=-93.5,
-        region="U.S. Midwest",
+        region="North America · United States · Iowa",
         soil_note="Deep prairie soils (Mollisols); high organic-matter potential.",
         typical_crop="Maize",
         agrozone="Temperate maize–soybean",
         local_tip="Many farms already rotate maize with soybean. Cover crops after harvest close the winter bare-soil window.",
+        continent="North America",
+        country="United States",
+        country_code="US",
+        state="Iowa",
+        area="Iowa Corn Belt",
     ),
     Farm(
         name="California Central Valley",
         lat=36.7,
         lon=-119.8,
-        region="U.S. California",
+        region="North America · United States · California",
         soil_note="Irrigated alluvial soils; heat and water demand are the main risks.",
         typical_crop="Mixed",
         agrozone="Irrigated Mediterranean",
         local_tip="Irrigation often masks rainfall decline. Drought-tolerant sequences still help if water allocations tighten.",
+        continent="North America",
+        country="United States",
+        country_code="US",
+        state="California",
+        area="Central Valley",
     ),
     Farm(
         name="West Africa Maize Belt",
         lat=10.5,
         lon=-1.2,
-        region="West Africa (Ghana / northern savanna)",
+        region="Africa · Ghana · Northern savanna",
         soil_note="Savanna soils with seasonal rainfall; erosion and dry spells matter.",
         typical_crop="Maize",
         agrozone="Guinea savanna",
         local_tip="Farmers here often intercrop maize with cowpea or pigeon pea. Plant a cover or cowpea as soon as maize is harvested, before the dry season.",
+        continent="Africa",
+        country="Ghana",
+        country_code="GH",
+        state="Northern Region",
+        area="West Africa maize belt",
     ),
     Farm(
         name="Kano / northern Nigeria",
         lat=12.0,
         lon=8.5,
-        region="West Africa (Sudano-Sahel)",
+        region="Africa · Nigeria · Kano",
         soil_note="Sandy loams; short rainy season and high heat.",
         typical_crop="Sorghum",
         agrozone="Sudano-Sahel",
         local_tip="Sorghum–millet–cowpea or groundnut rotations are familiar. Avoid leaving fields bare after harvest; residue and cowpea cover reduce wind erosion.",
+        continent="Africa",
+        country="Nigeria",
+        country_code="NG",
+        state="Kano",
+        lga="Kano Municipal",
+        area="Kano",
     ),
     Farm(
         name="Ethiopian Highlands",
         lat=9.0,
         lon=38.7,
-        region="East Africa (highland mixed)",
+        region="Africa · Ethiopia · Oromia",
         soil_note="Highland soils; erosion on slopes and variable belg/kiremt rains.",
         typical_crop="Teff",
         agrozone="Highland mixed",
         local_tip="Teff–pulse sequences (chickpea, field pea, or faba bean) are common. Keep soil covered on slopes after teff harvest to slow erosion.",
+        continent="Africa",
+        country="Ethiopia",
+        country_code="ET",
+        state="Oromia",
+        area="Ethiopian Highlands",
     ),
 )
-
-FARMS_BY_NAME = {farm.name: farm for farm in DEMO_FARMS}
 
 CROPS = (
     "Maize",
@@ -131,6 +156,31 @@ DISCLAIMER = (
     "satellite and model data and should not replace local agronomic advice "
     "or on-farm observations."
 )
+
+SITE_NAME = "Field Shift · Rotation Explorer"
+SITE_SHORT_NAME = "Field Shift"
+SITE_TAGLINE = "Compare crop rotations with NASA weather for the field you farm."
+SITE_DESCRIPTION = (
+    "Field Shift Rotation Explorer helps farmers and extension workers pin a real "
+    "field, load NASA POWER climate, and compare crop rotations with transparent "
+    "scores. Built for the NASA Space Apps Challenge 2026 Field Shift challenge."
+)
+SITE_KEYWORDS = (
+    "crop rotation, NASA POWER, smallholder farming, agroclimatology, maize, "
+    "sorghum, millet, teff, cowpea, extension worker, Field Shift, Space Apps, "
+    "farm climate, drought resilience, nitrogen fixing"
+)
+SITE_LOCALE = "en_US"
+SITE_URL = os.environ.get(
+    "FIELDSHIFT_PUBLIC_URL",
+    "https://github.com/0xUkobong/fieldshift",
+).rstrip("/")
+GITHUB_RAW_STATIC = (
+    "https://raw.githubusercontent.com/0xUkobong/fieldshift/main/static"
+)
+ROOT_DIR = Path(__file__).resolve().parent.parent
+STATIC_DIR = ROOT_DIR / "static"
+FAVICON_PATH = STATIC_DIR / "favicon.png"
 
 CURRENT_SEQUENCES = {
     "Maize": "Maize → cowpea or soybean → maize",

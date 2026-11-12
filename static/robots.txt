@@ -1,0 +1,30 @@
+User-agent: *
+Allow: /
+Allow: /About
+Allow: /Disclaimer
+Allow: /Privacy
+Allow: /Data_sources
+Disallow: /_stcore/
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Anthropic-ai
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+Sitemap: https://raw.githubusercontent.com/0xUkobong/fieldshift/main/static/sitemap.xml

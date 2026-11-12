@@ -2,7 +2,7 @@
 
 Farmer-facing decision support for crop rotation, built for the NASA Space Apps Challenge 2026 challenge **Field Shift: Adapting Farms with NASA Data**.
 
-Set a field, the current crop, and what matters on that farm. The app loads NASA POWER weather for that point, then compares three rotations with scores, charts, plain-language reasons, risks, and a shareable summary. It is a starting point for a conversation with local advice. It does not replace extension services, soil tests, or on-farm observation.
+Locate a real field (continent, country, state, local government, area, or a map pin), set the current crop, and say what matters on that farm. The app loads NASA POWER weather for that point, then compares rotations with scores, charts, plain-language reasons, risks, and a shareable summary. It is a starting point for a conversation with local advice. It does not replace extension services, soil tests, or on-farm observation.
 
 ## What it compares
 
@@ -21,7 +21,7 @@ Live requests use the [NASA POWER](https://power.larc.nasa.gov/) daily point API
 - `T2M`, `T2M_MAX`, `T2M_MIN` — mean and extreme air temperature
 - `PRECTOTCORR` — corrected precipitation
 
-The default record is 2018–2025. A successful fetch is saved under `data/power_cache/` so the same point still works offline. Five demo sites ship with cached packs, including Kano / northern Nigeria and the West Africa maize belt. Custom latitude and longitude are supported; the first visit needs a network connection.
+The default record is a rolling 7-year NASA POWER window. A successful fetch is saved under `data/power_cache/` so the same point still works offline. Saved fields and extension rosters stay in `data/fieldshift.db` on this device. Example cache packs are optional; the app starts with no field selected.
 
 This build does not include SMAP soil moisture or ECOSTRESS water-stress tiles.
 
@@ -37,6 +37,8 @@ streamlit run app.py
 ```
 
 Open [http://127.0.0.1:8501](http://127.0.0.1:8501).
+
+Favicon, logo, and Open Graph image are in `static/`. Set `FIELDSHIFT_PUBLIC_URL` to the live origin (for example `https://your-app.streamlit.app`) so canonical and social tags point at the deployed app. Crawler files: `static/robots.txt`, `static/sitemap.xml`, `static/llms.txt`.
 
 ## Tests
 
@@ -57,7 +59,9 @@ rotation_explorer/
   insights.py           risks, timing, SMS and farmer card
   charts.py             Plotly figures
   ui.py                 Streamlit layout
-  config.py             demo farms, weights, disclaimer
+  config.py             weights, crops, optional example fields
+  geo.py                world place hierarchy and Nominatim
+  store.py              saved fields and roster
 data/power_cache/       offline POWER packs
 doc/                    challenge notes and design write-up
 tests/

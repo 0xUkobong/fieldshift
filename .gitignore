@@ -1,7 +1,10 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
-.streamlit/
+.streamlit/secrets.toml
 .venv/
 venv/
 .env
+data/fieldshift.db
+data/geo_cache/*
+!data/geo_cache/.gitkeep

@@ -15,6 +15,12 @@ class Farm:
     typical_crop: str
     local_tip: str = ""
     agrozone: str = ""
+    continent: str = ""
+    country: str = ""
+    country_code: str = ""
+    state: str = ""
+    lga: str = ""
+    area: str = ""
 
 
 @dataclass(frozen=True)

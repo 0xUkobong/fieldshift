@@ -1,4 +1,4 @@
-"""Disk cache so demo (and visited) points work after the first NASA POWER fetch."""
+"""Disk cache so visited field points work after the first NASA POWER fetch."""
 
 from __future__ import annotations
 

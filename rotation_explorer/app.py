@@ -15,6 +15,8 @@ from rotation_explorer.insights import (
 )
 from rotation_explorer.power import PowerAPIError, fetch_power_payload, power_to_dataframe
 from rotation_explorer.scoring import score_rotations
+from rotation_explorer.location_ui import render_location_picker
+from rotation_explorer.seo import EXPLORER, inject_seo, page_icon
 from rotation_explorer.ui import (
     inject_css,
     render_charts,
@@ -22,7 +24,6 @@ from rotation_explorer.ui import (
     render_extension_roster,
     render_farm_chip,
     render_header,
-    render_location_map,
     render_method_and_glossary,
     render_recommendation,
     render_risk_and_timing,
@@ -63,16 +64,22 @@ def load_daily_climate(lat: float, lon: float, prefer_cache: bool):
 def main() -> None:
     st.set_page_config(
         page_title="Field Shift · Rotation Explorer",
-        page_icon="F",
+        page_icon=page_icon(),
         layout="wide",
         initial_sidebar_state="expanded",
     )
+    inject_seo(EXPLORER)
     inject_css()
     render_header()
     setup, submitted = render_sidebar()
+    render_location_picker()
     if setup is None:
-        st.stop()
-    render_location_map(setup)
+        st.info(
+            "Pin your field with search, the place list, or the map. Then set crop and "
+            "goals in the sidebar and press Apply and compare."
+        )
+        render_method_and_glossary()
+        return
     if submitted:
         st.toast(f"Comparison updated for {setup.farm.name}.")
 
@@ -96,7 +103,7 @@ def main() -> None:
     if daily is None:
         st.error(
             "Weather for this field could not be loaded. Connect once to save an "
-            "offline pack, or pick a demo site that is already cached."
+            "offline pack, then try again."
         )
         if details := st.session_state.get("climate_data_error"):
             with st.expander("Technical details"):
