@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from html import escape
 
 import folium
@@ -46,7 +47,7 @@ def place_from_farm(farm: Farm) -> Place:
     )
 
 
-def hydrate_location(farm: Farm) -> None:
+def hydrate_location(farm: Farm, *, approximate: bool = False) -> None:
     place = place_from_farm(farm)
     st.session_state["place"] = place
     st.session_state["loc_continent"] = place.continent
@@ -57,16 +58,76 @@ def hydrate_location(farm: Farm) -> None:
     st.session_state["loc_lga"] = place.lga
     st.session_state["loc_area"] = place.area
     st.session_state["field_name"] = farm.name
+    st.session_state["loc_is_approximate"] = approximate
     if place.lat is not None and place.lon is not None:
         st.session_state["loc_lat"] = float(place.lat)
         st.session_state["loc_lon"] = float(place.lon)
         st.session_state["loc_has_point"] = True
+        st.session_state["loc_map_zoom"] = 13
+        st.session_state.pop("loc_map_preview", None)
 
 
 def _clear_pin() -> None:
     st.session_state["loc_has_point"] = False
+    st.session_state["loc_is_approximate"] = False
     st.session_state.pop("loc_lat", None)
     st.session_state.pop("loc_lon", None)
+
+
+def _set_map_preview(lat: float, lon: float, zoom: int, label: str) -> None:
+    st.session_state["loc_map_preview"] = {
+        "lat": float(lat),
+        "lon": float(lon),
+        "zoom": int(zoom),
+        "label": label,
+    }
+
+
+def _sync_location_from_fields(level: str) -> None:
+    """Move the map to the best place match without an extra pin button."""
+    _clear_pin()
+    continent = st.session_state.get("loc_continent") or ""
+    country_name, country_code = _split_country(st.session_state.get("loc_country") or "")
+    if not country_code:
+        view = CONTINENT_VIEW.get(continent)
+        if view:
+            _set_map_preview(view[0], view[1], int(view[2]), continent)
+        else:
+            st.session_state.pop("loc_map_preview", None)
+        return
+
+    state = (st.session_state.get("loc_state") or "").strip()
+    lga = (st.session_state.get("loc_lga") or "").strip()
+    area = (st.session_state.get("loc_area") or "").strip()
+    zoom_by_level = {"country": 5, "state": 7, "lga": 9, "area": 12}
+    try:
+        found = lookup_area(
+            country=country_name,
+            country_code=country_code,
+            state=state,
+            lga=lga,
+            area=area,
+        )
+    except GeoLookupError as exc:
+        st.session_state["_location_message"] = ("warning", str(exc))
+        return
+    if not found or not found.has_point():
+        return
+
+    _set_map_preview(
+        float(found.lat),
+        float(found.lon),
+        zoom_by_level.get(level, 7),
+        found.region_label() or country_name,
+    )
+    if level == "area" and area:
+        farm = farm_from_place(
+            found,
+            name=st.session_state.get("field_name") or found.suggested_name(),
+            crop=st.session_state.get("field_crop", "Maize"),
+        )
+        hydrate_location(farm, approximate=True)
+        st.session_state["loc_map_zoom"] = 13
 
 
 def _on_continent_change() -> None:
@@ -76,6 +137,11 @@ def _on_continent_change() -> None:
     st.session_state["loc_area"] = ""
     st.session_state.pop("place_hits", None)
     _clear_pin()
+    view = CONTINENT_VIEW.get(st.session_state.get("loc_continent") or "")
+    if view:
+        _set_map_preview(view[0], view[1], int(view[2]), st.session_state["loc_continent"])
+    else:
+        st.session_state.pop("loc_map_preview", None)
 
 
 def _on_country_change() -> None:
@@ -83,11 +149,23 @@ def _on_country_change() -> None:
     st.session_state["loc_lga"] = ""
     st.session_state["loc_area"] = ""
     st.session_state.pop("place_hits", None)
+    st.session_state.pop("loc_map_preview", None)
+    _sync_location_from_fields("country")
 
 
 def _on_state_change() -> None:
     st.session_state["loc_lga"] = ""
     st.session_state["loc_area"] = ""
+    _sync_location_from_fields("state")
+
+
+def _on_lga_change() -> None:
+    st.session_state["loc_area"] = ""
+    _sync_location_from_fields("lga")
+
+
+def _on_area_change() -> None:
+    _sync_location_from_fields("area")
 
 
 def _country_options(continent: str) -> list[str]:
@@ -117,9 +195,10 @@ def _apply_search_hit() -> None:
     hydrate_location(
         farm_from_place(
             hits[index],
-            name=hits[index].suggested_name(),
+            name=st.session_state.get("field_name") or hits[index].suggested_name(),
             crop=st.session_state.get("field_crop", "Maize"),
-        )
+        ),
+        approximate=True,
     )
 
 
@@ -133,34 +212,47 @@ def _load_example_field() -> None:
     st.session_state["climate_request_attempted"] = False
 
 
-def _pin_selected_place() -> None:
-    country_name, country_code = _split_country(st.session_state.get("loc_country") or "")
-    if not country_code:
+def _on_place_search() -> None:
+    query = (st.session_state.get("place_search") or "").strip()
+    if len(query) < 2:
+        st.session_state["place_hits"] = []
+        st.session_state.pop("place_hit_index", None)
         return
     try:
-        found = lookup_area(
-            country=country_name,
-            country_code=country_code,
-            state=st.session_state.get("loc_state") or "",
-            lga=(st.session_state.get("loc_lga") or "").strip(),
-            area=(st.session_state.get("loc_area") or "").strip(),
-        )
+        hits = search_places(query, limit=8)
     except GeoLookupError as exc:
+        st.session_state["place_hits"] = []
+        st.session_state.pop("place_hit_index", None)
         st.session_state["_location_message"] = ("warning", str(exc))
         return
-    if not found or not found.has_point():
+    # Nominatim can return the same place label for overlapping boundaries and
+    # point records. Keep the best ranked match instead of repeating a radio row.
+    unique_hits: list[Place] = []
+    seen_labels: set[str] = set()
+    for hit in hits:
+        label = (hit.display_name or hit.region_label()).strip().casefold()
+        if label and label not in seen_labels:
+            unique_hits.append(hit)
+            seen_labels.add(label)
+    hits = unique_hits
+    st.session_state["place_hits"] = hits
+    if hits:
+        st.session_state["place_hit_index"] = 0
+        first_hit = hits[0]
+        hydrate_location(
+            farm_from_place(
+                first_hit,
+                name=st.session_state.get("field_name") or first_hit.suggested_name(),
+                crop=st.session_state.get("field_crop", "Maize"),
+            ),
+            approximate=True,
+        )
+    else:
+        st.session_state.pop("place_hit_index", None)
         st.session_state["_location_message"] = (
-            "warning",
-            "No match for that place. Try a nearby town name, or click the map.",
+            "info",
+            "No matching place found. Try a nearby town or click the map to set the field pin.",
         )
-        return
-    hydrate_location(
-        farm_from_place(
-            found,
-            name=st.session_state.get("field_name") or found.suggested_name(),
-            crop=st.session_state.get("field_crop", "Maize"),
-        )
-    )
 
 
 def _name_pin_from_coordinates() -> None:
@@ -172,6 +264,7 @@ def _name_pin_from_coordinates() -> None:
     except GeoLookupError as exc:
         st.session_state["_location_message"] = ("warning", str(exc))
         return
+    named = replace(named, lat=float(place.lat), lon=float(place.lon))
     hydrate_location(
         farm_from_place(
             named,
@@ -235,28 +328,13 @@ def render_location_picker() -> Place:
         unsafe_allow_html=True,
     )
 
-    with st.form("place_search_form", border=False, clear_on_submit=False):
-        search_col, go_col = st.columns((3.2, 0.8), gap="small")
-        with search_col:
-            query = st.text_input(
-                "Search any place",
-                placeholder="e.g. Kumbotso, Kano, Nigeria",
-                help="Town, village, local government, or landmark anywhere in the world.",
-            )
-        with go_col:
-            st.markdown("<div style='height:1.7rem'></div>", unsafe_allow_html=True)
-            find = st.form_submit_button("Find places", use_container_width=True)
-
-    if find:
-        query = (query or "").strip()
-        if len(query) < 2:
-            st.warning("Type at least two letters to search.")
-        else:
-            try:
-                st.session_state["place_hits"] = search_places(query, limit=8)
-            except GeoLookupError as exc:
-                st.session_state["place_hits"] = []
-                st.error(str(exc))
+    st.text_input(
+        "Search any place",
+        key="place_search",
+        placeholder="e.g. Kumbotso, Kano, Nigeria",
+        help="Type a town, village, local government, or landmark, then press Enter. The map will move to the closest match.",
+        on_change=_on_place_search,
+    )
 
     hits: list[Place] = st.session_state.get("place_hits") or []
     if hits:
@@ -271,7 +349,6 @@ def render_location_picker() -> Place:
             key="place_hit_index",
             on_change=_apply_search_hit,
         )
-        st.button("Use selected place", on_click=_apply_search_hit)
 
     continent = st.selectbox(
         "Continent",
@@ -311,6 +388,7 @@ def render_location_picker() -> Place:
         state = st.text_input(
             "State / province / region",
             key="loc_state",
+            on_change=_on_state_change,
             disabled=not country_code,
             placeholder="e.g. Kano, Punjab, California",
         )
@@ -320,6 +398,7 @@ def render_location_picker() -> Place:
         st.text_input(
             "Local government / county / district",
             key="loc_lga",
+            on_change=_on_lga_change,
             disabled=not country_code,
             placeholder="e.g. Kumbotso, Kiambu, Cook County",
         )
@@ -327,22 +406,21 @@ def render_location_picker() -> Place:
         st.text_input(
             "Area / town / village",
             key="loc_area",
+            on_change=_on_area_change,
             disabled=not country_code,
             placeholder="e.g. farm settlement, ward, village",
         )
 
-    st.button(
-        "Pin this place on the map",
-        disabled=not country_code,
-        help="Looks up coordinates from the names you entered.",
-        on_click=_pin_selected_place,
-    )
-
     place = _pin_from_widgets()
     view = CONTINENT_VIEW.get(place.continent, (10.0, 20.0, 2.0))
-    center_lat = place.lat if place.lat is not None else view[0]
-    center_lon = place.lon if place.lon is not None else view[1]
-    zoom = 11 if place.has_point() else (view[2] if place.continent else 2)
+    preview = st.session_state.get("loc_map_preview") or {}
+    center_lat = place.lat if place.lat is not None else preview.get("lat", view[0])
+    center_lon = place.lon if place.lon is not None else preview.get("lon", view[1])
+    zoom = (
+        int(st.session_state.get("loc_map_zoom", 13))
+        if place.has_point()
+        else int(preview.get("zoom", view[2] if place.continent else 2))
+    )
 
     fmap = folium.Map(
         location=[center_lat, center_lon],
@@ -359,15 +437,26 @@ def render_location_picker() -> Place:
             fill_opacity=0.95,
             popup=place.suggested_name(),
         ).add_to(fmap)
+    elif preview.get("lat") is not None and preview.get("lon") is not None:
+        folium.CircleMarker(
+            location=[float(preview["lat"]), float(preview["lon"])],
+            radius=7,
+            color="#626263",
+            weight=2,
+            fill=True,
+            fill_color="#f7ca50",
+            fill_opacity=0.9,
+            tooltip=f"Approximate area · {escape(str(preview.get('label') or ''))}",
+        ).add_to(fmap)
 
     map_col, note_col = st.columns((1.45, 0.55), gap="large")
     with map_col:
         event = st_folium(
             fmap,
-            height=360,
+            height=440,
             use_container_width=True,
             returned_objects=["last_clicked"],
-            key="field_folium_map",
+            key=f"field-map-{round(float(center_lat), 5)}-{round(float(center_lon), 5)}-{zoom}",
         )
     clicked = (event or {}).get("last_clicked") if event else None
     if clicked and "lat" in clicked and "lng" in clicked:
@@ -388,6 +477,14 @@ def render_location_picker() -> Place:
                     area=place.area,
                 )
                 st.session_state["_location_message"] = ("warning", str(exc))
+            else:
+                # Keep the exact point chosen by the farmer; reverse geocoding
+                # supplies the place label, whose coordinates may be a centroid.
+                named = replace(
+                    named,
+                    lat=float(clicked["lat"]),
+                    lon=float(clicked["lng"]),
+                )
             st.session_state["_pending_location_hydration"] = farm_from_place(
                 named,
                 name=st.session_state.get("field_name") or named.suggested_name(),
@@ -399,7 +496,13 @@ def render_location_picker() -> Place:
         crumbs = place.region_label() if (place.country or place.continent) else "No field selected yet"
         if place.has_point():
             coordinates = f"{place.lat:.4f}°, {place.lon:.4f}°"
-            hint = "Click the map to refine the pin. Apply in the setup panel to load NASA weather for this point."
+            if st.session_state.get("loc_is_approximate"):
+                hint = "Approximate place match. Click the map to move the pin onto your field; NASA weather uses the pin."
+            else:
+                hint = "Field pin selected. Click the map to adjust it; NASA weather uses these coordinates."
+        elif preview.get("label"):
+            coordinates = f"Near {escape(str(preview['label']))}"
+            hint = "Approximate area view. Add a village or area, or click the map to set the field pin."
         else:
             coordinates = "No coordinates yet"
             hint = "Choose a country and pin the place, search a name, or click the map."
@@ -450,6 +553,9 @@ def render_location_picker() -> Place:
             st.session_state["loc_lat"] = float(manual_lat)
             st.session_state["loc_lon"] = float(manual_lon)
             st.session_state["loc_has_point"] = True
+            st.session_state["loc_is_approximate"] = False
+            st.session_state["loc_map_zoom"] = 14
+            st.session_state.pop("loc_map_preview", None)
             st.rerun()
 
     place = _pin_from_widgets()
