@@ -10,6 +10,7 @@ from streamlit_folium import st_folium
 import streamlit as st
 
 from rotation_explorer.config import EXAMPLE_FIELDS
+from rotation_explorer.device_location import device_location_picker
 from rotation_explorer.geo import (
     CONTINENT_VIEW,
     CONTINENTS,
@@ -47,7 +48,12 @@ def place_from_farm(farm: Farm) -> Place:
     )
 
 
-def hydrate_location(farm: Farm, *, approximate: bool = False) -> None:
+def hydrate_location(
+    farm: Farm,
+    *,
+    approximate: bool = False,
+    accuracy_m: float | None = None,
+) -> None:
     place = place_from_farm(farm)
     st.session_state["place"] = place
     st.session_state["loc_continent"] = place.continent
@@ -59,6 +65,7 @@ def hydrate_location(farm: Farm, *, approximate: bool = False) -> None:
     st.session_state["loc_area"] = place.area
     st.session_state["field_name"] = farm.name
     st.session_state["loc_is_approximate"] = approximate
+    st.session_state["loc_device_accuracy_m"] = accuracy_m
     if place.lat is not None and place.lon is not None:
         st.session_state["loc_lat"] = float(place.lat)
         st.session_state["loc_lon"] = float(place.lon)
@@ -255,6 +262,35 @@ def _on_place_search() -> None:
         )
 
 
+def _apply_device_location(result: dict[str, object]) -> None:
+    event_id = result.get("eventId")
+    if event_id is None or event_id == st.session_state.get("loc_device_event_id"):
+        return
+    st.session_state["loc_device_event_id"] = event_id
+    lat = result.get("lat")
+    lon = result.get("lon")
+    if result.get("error"):
+        return
+    if not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)):
+        return
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        return
+
+    accuracy = result.get("accuracy")
+    accuracy_m = (
+        float(accuracy)
+        if isinstance(accuracy, (int, float)) and accuracy >= 0
+        else None
+    )
+    place = Place(lat=float(lat), lon=float(lon), display_name="Device location")
+    farm = farm_from_place(
+        place,
+        name=st.session_state.get("field_name") or "My field",
+        crop=st.session_state.get("field_crop", "Maize"),
+    )
+    hydrate_location(farm, accuracy_m=accuracy_m)
+
+
 def _name_pin_from_coordinates() -> None:
     place = _pin_from_widgets()
     if not place.has_point():
@@ -327,6 +363,10 @@ def render_location_picker() -> Place:
         """,
         unsafe_allow_html=True,
     )
+
+    device_result = device_location_picker(key="fieldshift-device-location")
+    if device_result:
+        _apply_device_location(device_result)
 
     st.text_input(
         "Search any place",
@@ -496,7 +536,10 @@ def render_location_picker() -> Place:
         crumbs = place.region_label() if (place.country or place.continent) else "No field selected yet"
         if place.has_point():
             coordinates = f"{place.lat:.4f}°, {place.lon:.4f}°"
-            if st.session_state.get("loc_is_approximate"):
+            device_accuracy = st.session_state.get("loc_device_accuracy_m")
+            if device_accuracy is not None:
+                hint = f"Device location · about ±{device_accuracy:.0f} m reported accuracy. Click the map to adjust; NASA weather uses this pin."
+            elif st.session_state.get("loc_is_approximate"):
                 hint = "Approximate place match. Click the map to move the pin onto your field; NASA weather uses the pin."
             else:
                 hint = "Field pin selected. Click the map to adjust it; NASA weather uses these coordinates."

@@ -49,6 +49,15 @@ def asset_src(filename: str) -> str:
     return f"/app/static/{filename}"
 
 
+def manifest_src() -> str:
+    """Return the manifest only when the active host serves its icon paths."""
+    # Streamlit Community Cloud redirects the manifest request through its own
+    # auth host in some sessions. The Caddy deployment serves /assets directly.
+    if FIELDSHIFT_APP_BASE_PATH or "github.com" in SITE_URL:
+        return asset_src("site.webmanifest")
+    return ""
+
+
 @lru_cache(maxsize=1)
 def header_mark_src() -> str:
     """Inline the small brand mark so the header doesn't depend on a host asset route."""
@@ -112,7 +121,8 @@ PRIVACY = PageSEO(
     title=f"Privacy · {SITE_SHORT_NAME}",
     description=(
         "Privacy notice for Field Shift: hosted field records are stored on the "
-        "app server. NASA POWER and OpenStreetMap receive coordinates or searches."
+        "app server. Device location is opt-in; NASA POWER receives the selected "
+        "field coordinates when you apply a comparison."
     ),
     path="/Privacy",
 )
@@ -277,7 +287,7 @@ def inject_seo(page: PageSEO) -> None:
         # Streamlit Cloud serves /app/static, while the Caddy front door uses /assets.
         "icon": asset_src("favicon.png"),
         "appleIcon": asset_src("apple-touch-icon.png"),
-        "manifest": asset_src("site.webmanifest"),
+        "manifest": manifest_src(),
         "theme": "#1e1e1f",
     }
     blob = json.dumps(payload)
@@ -346,12 +356,16 @@ def inject_seo(page: PageSEO) -> None:
     return n;
   }});
   apple.setAttribute('href', data.appleIcon);
-  const man = upsert('link[rel="manifest"]', () => {{
-    const n = d.createElement('link');
-    n.setAttribute('rel', 'manifest');
-    return n;
-  }});
-  man.setAttribute('href', data.manifest);
+  if (data.manifest) {{
+    const man = upsert('link[rel="manifest"]', () => {{
+      const n = d.createElement('link');
+      n.setAttribute('rel', 'manifest');
+      return n;
+    }});
+    man.setAttribute('href', data.manifest);
+  }} else {{
+    head.querySelector('link[rel="manifest"]')?.remove();
+  }}
   let ld = head.querySelector('script[data-fieldshift-jsonld]');
   if (!ld) {{
     ld = d.createElement('script');

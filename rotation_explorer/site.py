@@ -162,15 +162,16 @@ def render_privacy() -> None:
         </div>
         <div class="legal">
           <h2>What you type</h2>
-          <p>You may enter a field name, coordinates or place names, crop, soil notes, yield, farmer name (in extension mode), priorities, and local tips. Those values are used to score rotations and to fill share cards.</p>
+          <p>You may enter a field name, coordinates or place names, crop, soil notes, yield, farmer name (in extension mode), priorities, and local tips. You may also choose to share your device location for the current field. Those values are used to score rotations and to fill share cards.</p>
           <h2>Where records are stored</h2>
           <p>Applied fields and extension rosters are stored in SQLite (<code>data/fieldshift.db</code>) on the machine running the app. NASA POWER climate series and place lookup results are cached under <code>data/power_cache/</code> and <code>data/geo_cache/</code>. The service operator and anyone with access to that machine can read these files. There is no self-service deletion control; an operator must remove records from the database and related caches.</p>
           <h2>What is sent to other services</h2>
           <ul>
-            <li><strong>NASA POWER</strong> — selected field latitude, longitude, and climate date range. Farmer names and local notes are not part of the climate request.</li>
-            <li><strong>OpenStreetMap Nominatim</strong> — place search text, or coordinates when a map pin is named. Use is subject to the OpenStreetMap Foundation’s terms and usage policy.</li>
+            <li><strong>NASA POWER</strong> — selected field latitude, longitude, and climate date range when you apply a comparison. Farmer names and local notes are not part of the climate request.</li>
+            <li><strong>OpenStreetMap Nominatim</strong> — place search text, or coordinates only when you choose “Name the pin from coordinates.” Use is subject to the OpenStreetMap Foundation’s terms and usage policy.</li>
             <li><strong>Map tiles</strong> — the browser requests map tiles from the configured tile provider to draw the map.</li>
           </ul>
+          <p>Device location is requested only after you tap “Use my device location” and grant permission in your browser. Field Shift does not track location in the background. The coordinates are used for this field and are stored with it only if you apply and save the comparison. You can deny or revoke browser permission and use search, the map, or coordinates instead.</p>
           <p>The project does not add a product analytics service. The app framework may store a session cookie in your browser while you work. The web host may also retain ordinary server access logs according to its configuration.</p>
           <h2>We do not sell data</h2>
           <p>Field Shift does not sell farmer records. The hosting operator controls access and retention for records on the server. Deletion currently requires the operator to remove the saved record and related cache files.</p>
