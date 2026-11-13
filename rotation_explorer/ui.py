@@ -33,7 +33,7 @@ from rotation_explorer.config import (
     infer_soil_type,
 )
 from rotation_explorer.geo import farm_from_place
-from rotation_explorer.seo import app_route, asset_src
+from rotation_explorer.seo import app_route, header_mark_src
 from rotation_explorer.location_ui import hydrate_location, session_place
 from rotation_explorer.climate import climate_story
 from rotation_explorer.insights import (
@@ -341,7 +341,7 @@ def render_header() -> None:
     st.markdown(
         f"""
         <nav class="topbar" aria-label="Main navigation">
-          <a class="brand" href="{explorer_url}" target="_self"><img class="brand-mark" src="{asset_src('header-mark.png')}" width="36" height="36" alt="">FIELD SHIFT <small>Rotation Explorer</small></a>
+          <a class="brand" href="{explorer_url}" target="_self"><img class="brand-mark" src="{header_mark_src()}" width="36" height="36" alt="">FIELD SHIFT <small>Rotation Explorer</small></a>
           <div class="toplinks">
             <a href="#field">FIELD</a>
             <a href="#climate">CLIMATE</a>

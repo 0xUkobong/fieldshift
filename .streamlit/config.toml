@@ -4,6 +4,9 @@ enableStaticServing = true
 [browser]
 gatherUsageStats = false
 
+[client]
+toolbarMode = "viewer"
+
 [theme]
 primaryColor = "#8ec7e2"
 backgroundColor = "#f5f5f5"

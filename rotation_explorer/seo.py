@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass, field
+from functools import lru_cache
 import json
 import os
 from typing import Any
@@ -20,6 +22,7 @@ from rotation_explorer.config import (
     SITE_SHORT_NAME,
     SITE_TAGLINE,
     SITE_URL,
+    STATIC_DIR,
 )
 
 
@@ -44,6 +47,16 @@ def asset_src(filename: str) -> str:
     if os.environ.get("FIELDSHIFT_PUBLIC_URL"):
         return f"/assets/{filename}"
     return f"/app/static/{filename}"
+
+
+@lru_cache(maxsize=1)
+def header_mark_src() -> str:
+    """Inline the small brand mark so the header doesn't depend on a host asset route."""
+    mark = STATIC_DIR / "header-mark.png"
+    if not mark.exists():
+        return asset_src("header-mark.png")
+    encoded = base64.b64encode(mark.read_bytes()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
 
 
 def app_route(path: str) -> str:
@@ -260,9 +273,11 @@ def inject_seo(page: PageSEO) -> None:
         "image": image,
         "siteName": SITE_NAME,
         "jsonld": graph_for(page),
-        "icon": asset_url("favicon.png"),
-        "appleIcon": asset_url("apple-touch-icon.png"),
-        "manifest": asset_url("site.webmanifest"),
+        # Browser chrome assets must resolve against the active app host:
+        # Streamlit Cloud serves /app/static, while the Caddy front door uses /assets.
+        "icon": asset_src("favicon.png"),
+        "appleIcon": asset_src("apple-touch-icon.png"),
+        "manifest": asset_src("site.webmanifest"),
         "theme": "#1e1e1f",
     }
     blob = json.dumps(payload)
