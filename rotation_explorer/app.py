@@ -26,6 +26,7 @@ from rotation_explorer.ui import (
     render_farm_chip,
     render_floating_summary_button,
     render_header,
+    render_decision_guidance,
     render_method_and_glossary,
     render_recommendation,
     render_risk_and_timing,
@@ -162,5 +163,6 @@ def main() -> None:
     render_share_kit(setup, climate, rotations, flags, timing)
     render_extension_roster(setup, top)
     render_charts(climate_window, monthly)
+    render_decision_guidance(rotations, setup, timing)
     render_method_and_glossary()
     render_floating_summary_button(setup, climate, rotations, flags, timing)

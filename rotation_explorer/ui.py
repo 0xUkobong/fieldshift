@@ -155,6 +155,15 @@ section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { line-he
 .section-head h2 { margin:0; color:var(--carbon); font-size:clamp(1.7rem,2.6vw,2.7rem); font-weight:400; line-height:1.08; letter-spacing:-.06em; text-wrap:balance; }
 .section-head p { max-width:46rem; margin:.4rem 0 0; color:var(--muted); font-size:.9rem; line-height:1.5; letter-spacing:-.015em; }
 .section-head.stacked { display:block; }
+.decision-head { margin-top:4.2rem; }
+.decision-grid { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.decision-lead,.decision-checks { min-width:0; padding:1.2rem 1.5rem 1.3rem 0; }
+.decision-checks { padding-right:0; padding-left:1.5rem; border-left:1px solid var(--line); }
+.decision-lead h3 { margin:.85rem 0 .55rem; color:var(--carbon); font-size:clamp(1.35rem,2vw,1.9rem); font-weight:400; line-height:1.15; letter-spacing:-.05em; }
+.decision-lead p,.decision-checks li { color:#454546; font-size:.92rem; line-height:1.55; }
+.decision-note { margin-top:1rem; padding-top:.8rem; border-top:1px solid var(--line); color:var(--muted)!important; font-size:.8rem!important; }
+.decision-checks ul { margin:.65rem 0 0; padding-left:1.15rem; }
+.timing-label { display:block; margin-top:1.2rem; }
 .stat-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:0; margin:0 0 1.25rem; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
 .stat { min-height:7.2rem; padding:1rem .8rem 1rem 0; }
 .stat+.stat { padding-left:.85rem; border-left:1px solid var(--line); }
@@ -300,6 +309,9 @@ button[kind="secondary"]:hover,.stButton button:hover { border:0; background:#a6
   .map-panel { min-height:0; padding:1rem; }
   .map-panel h3 { overflow-wrap:anywhere; }
   .method-grid { grid-template-columns:minmax(0,1fr); gap:1.2rem; }
+  .decision-grid { grid-template-columns:minmax(0,1fr); }
+  .decision-lead,.decision-checks { padding:1rem 0; }
+  .decision-checks { border-left:0; border-top:1px solid var(--line); }
   .cue-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .stHorizontalBlock { flex-direction:column!important; gap:.85rem!important; }
   .stHorizontalBlock > div[data-testid="column"] { flex:1 1 100%!important; width:100%!important; min-width:0!important; max-width:100%!important; }
@@ -410,6 +422,7 @@ def inject_css() -> None:
 def render_header() -> None:
     explorer_url = app_route("/")
     about_url = app_route("/About")
+    guide_url = app_route("/User_guide")
     st.markdown(
         f"""
         <nav class="topbar" aria-label="Main navigation">
@@ -418,6 +431,7 @@ def render_header() -> None:
             <a href="#field">FIELD</a>
             <a href="#climate">CLIMATE</a>
             <a href="#rotations">ROTATIONS</a>
+            <a href="{guide_url}" target="_self">USER GUIDE</a>
             <a href="{about_url}">ABOUT</a>
             <a class="pill-link" href="#rotations">Explore rotations <span>↗</span></a>
           </div>
@@ -427,6 +441,7 @@ def render_header() -> None:
               <a href="#field">Field</a>
               <a href="#climate">Climate</a>
               <a href="#rotations">Rotations</a>
+              <a href="{guide_url}" target="_self">User guide</a>
               <a href="{about_url}" target="_self">About</a>
               <a class="pill-link" href="#rotations">Explore rotations <span>↗</span></a>
             </nav>
@@ -914,7 +929,7 @@ def render_rotation_dashboard(rotations: list[RotationResult]) -> None:
     st.markdown(
         f"""
         <div class="section-head stacked">
-          <h2>Compare the three options</h2>
+          <h2>Compare the rotation options</h2>
           <p>Overall score = {water_pct}% water + {soil_pct}% soil health +
           {pri_pct}% priority match. Scores run from 1–5. They do not predict yield.</p>
         </div>
@@ -1175,6 +1190,47 @@ def render_method_and_glossary() -> None:
     from rotation_explorer.site import render_footer
 
     render_footer()
+
+
+def render_decision_guidance(
+    rotations: list[RotationResult],
+    setup: FarmSetup,
+    timing: list[str],
+) -> None:
+    """Turn the comparison into practical questions without prescribing a decision."""
+    top_score = max(result.score for result in rotations)
+    top_matches = [result for result in rotations if result.score == top_score]
+    lead = top_matches[0]
+    names = " · ".join(escape(result.name) for result in top_matches)
+    next_step = NEXT_STEPS.get(lead.name, NEXT_STEPS[ROTATION_CURRENT])
+    timing_items = "".join(f"<li>{escape(item)}</li>" for item in timing[:2])
+    st.markdown(
+        f"""
+        <div class="section-head stacked decision-head" id="what-next">
+          <span class="eyebrow">From comparison to conversation</span>
+          <h2>What to do with this information</h2>
+          <p>Use the strongest match as a shortlist for this field, crop, climate period, and priorities. Then check whether it fits the conditions and resources you know locally.</p>
+        </div>
+        <div class="decision-grid">
+          <article class="decision-lead">
+            <span class="badge gold">Highest overall fit · {top_score:.1f} / 5</span>
+            <h3>{names}</h3>
+            <p>{escape(action_line(setup.crop, lead, setup.farm.region))}</p>
+            <p class="decision-note">The score compares options using the available climate record and selected priorities. It does not predict yield or guarantee an outcome.</p>
+          </article>
+          <article class="decision-checks">
+            <span class="eyebrow">Questions to check locally</span>
+            <ul>
+              <li>{escape(next_step)}</li>
+              <li>Does the option fit your water access, soil condition, labour, equipment, and market?</li>
+              <li>Would a soil test or a local extension adviser change how you interpret this result?</li>
+            </ul>
+            {f'<span class="eyebrow timing-label">Timing to discuss</span><ul>{timing_items}</ul>' if timing_items else ''}
+          </article>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 @st.dialog("🌾 Plain-English Field Brief", width="large")

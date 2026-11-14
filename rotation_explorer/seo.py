@@ -134,6 +134,27 @@ DATA = PageSEO(
     ),
     path="/Data_sources",
 )
+GUIDE = PageSEO(
+    title=f"User guide · {SITE_SHORT_NAME}",
+    description=(
+        "Learn how to locate a field, read NASA POWER climate summaries and "
+        "crop-rotation scores, and use Field Shift results in local farm decisions."
+    ),
+    path="/User_guide",
+    extra_jsonld=[
+        {
+            "@type": "HowTo",
+            "name": "Use Field Shift Rotation Explorer",
+            "description": "Locate a field, compare crop rotations, and review the results with local knowledge.",
+            "step": [
+                {"@type": "HowToStep", "name": "Locate the field", "text": "Search for a place, use the selectors or map, or opt in to device location. Check the pin."},
+                {"@type": "HowToStep", "name": "Describe the field", "text": "Select the crop, soil texture if known, and priorities for the comparison."},
+                {"@type": "HowToStep", "name": "Apply and compare", "text": "Apply the field settings to load NASA POWER climate data and compare rotation options."},
+                {"@type": "HowToStep", "name": "Review locally", "text": "Treat scores as a shortlist and check the options against field conditions and local agronomic advice."},
+            ],
+        }
+    ],
+)
 
 
 def _software_application() -> dict[str, Any]:

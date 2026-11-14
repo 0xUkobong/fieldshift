@@ -9,6 +9,7 @@ from rotation_explorer.seo import (
     ABOUT,
     DATA,
     DISCLAIMER as DISCLAIMER_SEO,
+    GUIDE,
     PRIVACY,
     PageSEO,
     app_route,
@@ -23,6 +24,7 @@ UPDATED = "12 November 2026"
 def render_legal_nav(current: str = "") -> None:
     explorer_url = app_route("/")
     about_url = app_route("/About")
+    guide_url = app_route("/User_guide")
     disclaimer_url = app_route("/Disclaimer")
     privacy_url = app_route("/Privacy")
     st.markdown(
@@ -31,6 +33,7 @@ def render_legal_nav(current: str = "") -> None:
           <a class="brand" href="{explorer_url}" target="_self"><img class="brand-mark" src="{header_mark_src()}" width="36" height="36" alt="">FIELD SHIFT <small>Rotation Explorer</small></a>
           <div class="toplinks">
             <a href="{explorer_url}" target="_self">EXPLORER</a>
+            <a href="{guide_url}" target="_self">USER GUIDE</a>
             <a href="{about_url}" target="_self">ABOUT</a>
             <a href="{disclaimer_url}" target="_self">DISCLAIMER</a>
             <a href="{privacy_url}" target="_self">PRIVACY</a>
@@ -44,7 +47,9 @@ def render_legal_nav(current: str = "") -> None:
 
 
 def render_footer() -> None:
-    about, disclaimer, privacy, data, copy = st.columns([0.9, 1.15, 0.9, 1.4, 3.4])
+    guide, about, disclaimer, privacy, data, copy = st.columns([1.05, 0.8, 1.1, 0.8, 1.35, 3.4])
+    with guide:
+        st.page_link("pages/5_User_guide.py", label="User guide")
     with about:
         st.page_link("pages/1_About.py", label="About")
     with disclaimer:
@@ -56,7 +61,8 @@ def render_footer() -> None:
     with copy:
         st.caption(
             "Rotation Explorer · NASA Space Apps Challenge 2026 · "
-            "Data courtesy of NASA Langley Research Center POWER Project."
+            "Data courtesy of NASA Langley Research Center POWER Project. "
+            "Built by Team Asterverse."
         )
 
 
@@ -72,6 +78,7 @@ def start_legal_page(title: str, current: str, page: PageSEO | None = None) -> N
         "disclaimer": DISCLAIMER_SEO,
         "privacy": PRIVACY,
         "data": DATA,
+        "guide": GUIDE,
     }
     inject_seo(page or seo_pages.get(current, ABOUT))
     from rotation_explorer.ui import inject_css
@@ -85,8 +92,9 @@ def start_legal_page(title: str, current: str, page: PageSEO | None = None) -> N
 
 
 def render_about() -> None:
+    guide_url = app_route("/User_guide")
     st.markdown(
-        """
+        f"""
         <div class="hero">
           <div>
             <div class="kicker">NASA Space Apps Challenge 2026</div>
@@ -99,6 +107,7 @@ def render_about() -> None:
           </div>
         </div>
         <div class="legal">
+          <p>New to the tool? <a href="{guide_url}" target="_self">Read the user guide</a> for a step-by-step explanation of the map, scores, climate views, and next steps.</p>
           <h2>Who it is for</h2>
           <p>Smallholders, farm families, and extension workers who want a starting point for a rotation conversation. You name the field, the current crop, and what matters on that land. The app does not assume you are in Iowa, California, or any other demo site.</p>
           <h2>What it does</h2>
@@ -117,6 +126,55 @@ def render_about() -> None:
         """,
         unsafe_allow_html=True,
     )
+    render_footer()
+
+
+def render_user_guide() -> None:
+    privacy_url = app_route("/Privacy")
+    data_url = app_route("/Data_sources")
+    about_url = app_route("/About")
+    st.markdown(
+        f"""
+        <div class="hero">
+          <div>
+            <div class="kicker">Field Shift · User guide</div>
+            <h1 id="overview">A clear path from field location to next steps.</h1>
+            <p class="lede">Use this guide to set up a field, read the climate and rotation comparison, and decide what to discuss with a local adviser.</p>
+          </div>
+          <div class="hero-aside">
+            <div class="live-pill"><span class="live-dot"></span> Start with your field</div>
+            <p class="quiet">Field Shift supports exploration. Its scores are not a forecast, yield estimate, or planting prescription.</p>
+          </div>
+        </div>
+        <div class="legal guide-content">
+          <h2>1. Locate the field</h2>
+          <p>Open the Explorer and choose a place by searching, using the location selectors, or placing the pin on the map. You can also choose “Use my device location” and grant browser permission. Check the pin before continuing; NASA POWER weather is requested for the selected coordinates.</p>
+          <h2>2. Describe the field</h2>
+          <p>Set the crop you want to compare, soil texture if known, and the priorities that matter for this field. You may add an observed last-harvest yield and local notes. Yield is context you provide; Field Shift does not forecast future yield from it.</p>
+          <h2>3. Apply and compare</h2>
+          <p>Choose the climate years and select <strong>Apply and compare</strong>. The app loads daily NASA POWER weather for the pin, then evaluates the rotation options against water resilience, soil-health potential, and your selected priorities. A saved climate pack may be used when offline mode is enabled.</p>
+          <h2>Read the recommendation</h2>
+          <p>The top match is the option with the strongest overall rule-based score for the current inputs. Tied options can both appear. The score summarizes this comparison; it is not a probability of success and does not predict yield.</p>
+          <ul>
+            <li><strong>Water resilience</strong> reflects the app’s simple response to heat and rainfall patterns in the selected climate record.</li>
+            <li><strong>Soil health</strong> rewards rotation approaches associated in the app’s rules with cover, legumes, or more diverse planting.</li>
+            <li><strong>Priority match</strong> reflects the goals you selected, such as water savings, organic matter, nitrogen, erosion, or forage.</li>
+          </ul>
+          <p>The overall score weights water resilience at 40%, soil health at 30%, and priority match at 30%. Use <strong>Sort rotations by</strong> to inspect a specific dimension without changing which option leads on overall fit.</p>
+          <h2>Use climate views as context</h2>
+          <p>The climate snapshot and charts summarize the NASA POWER record for the chosen point and period. Risk flags, heat thresholds, and planting-window screens are broad signals. Gridded data cannot capture every field feature, irrigation source, soil variation, or local microclimate.</p>
+          <h2>What to do with the result</h2>
+          <p>Take the leading option and its trade-offs to someone who understands the local soil, varieties, water, labour, equipment, and market. Check the field itself and use a soil test where practical. If the result does not fit what you observe, trust verified local evidence and adjust the inputs or seek local agronomic advice.</p>
+          <h2>Save or share</h2>
+          <p>Download a farmer card, short SMS note, comparison notes, or CSV for discussion. Extension workers can use the roster to organize farmer comparisons. Treat saved records as data held by the machine hosting the app; see the <a href="{privacy_url}" target="_self">privacy notice</a> for details.</p>
+          <h2>Data and limits</h2>
+          <p>Weather comes from NASA Langley Research Center’s POWER project. Place search and map data use OpenStreetMap. NASA supplies the climate data; the rotation scores and recommendations are this project’s rules and are not endorsed by NASA.</p>
+          <p>For variable definitions, visit <a href="{data_url}" target="_self">Data sources</a>. For project background and scope, visit <a href="{about_url}" target="_self">About Field Shift</a>.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.link_button("Open the field explorer", app_route("/"), type="primary")
     render_footer()
 
 
