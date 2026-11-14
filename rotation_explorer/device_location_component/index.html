@@ -42,7 +42,7 @@
   </head>
   <body>
     <div class="control">
-      <button id="locate" type="button">◎ &nbsp; Use my device location</button>
+      <button id="locate" type="button">◎ &nbsp; Capture Current Coordinates</button>
       <p class="detail">Only after you tap. Your browser will ask; coordinates go to Field Shift for this field, with no background tracking.</p>
       <p class="status" id="status" role="status" aria-live="polite"></p>
     </div>
@@ -118,6 +118,9 @@
           if (event.source !== window.parent || !event.data) return;
           if (event.data.type === "streamlit:render") {
             componentReady = true;
+            if (event.data.args && event.data.args.button_label) {
+              button.innerHTML = event.data.args.button_label;
+            }
             setFrameHeight();
           }
         });

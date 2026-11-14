@@ -11,7 +11,7 @@ _COMPONENT_DIR = Path(__file__).parent / "device_location_component"
 _device_location_component = None
 
 
-def device_location_picker(*, key: str) -> dict[str, Any] | None:
+def device_location_picker(*, key: str, button_label: str = "◎ &nbsp; Capture Current Coordinates") -> dict[str, Any] | None:
     """Render a consent-first button and return one location result or error."""
     global _device_location_component
     if _device_location_component is None:
@@ -21,5 +21,5 @@ def device_location_picker(*, key: str) -> dict[str, Any] | None:
             "fieldshift_device_location",
             path=str(_COMPONENT_DIR),
         )
-    value = _device_location_component(default=None, key=key)
+    value = _device_location_component(default=None, key=key, button_label=button_label)
     return value if isinstance(value, dict) else None

@@ -592,14 +592,23 @@ def render_location_picker() -> Place:
                 format="%.4f",
                 value=known_lon,
             )
-        if st.button("Use these coordinates"):
-            st.session_state["loc_lat"] = float(manual_lat)
-            st.session_state["loc_lon"] = float(manual_lon)
-            st.session_state["loc_has_point"] = True
-            st.session_state["loc_is_approximate"] = False
-            st.session_state["loc_map_zoom"] = 14
-            st.session_state.pop("loc_map_preview", None)
-            st.rerun()
+        coord_btn_col1, coord_btn_col2 = st.columns((1, 1))
+        with coord_btn_col1:
+            if st.button("Use these coordinates", use_container_width=True):
+                st.session_state["loc_lat"] = float(manual_lat)
+                st.session_state["loc_lon"] = float(manual_lon)
+                st.session_state["loc_has_point"] = True
+                st.session_state["loc_is_approximate"] = False
+                st.session_state["loc_map_zoom"] = 14
+                st.session_state.pop("loc_map_preview", None)
+                st.rerun()
+        with coord_btn_col2:
+            device_coord_result = device_location_picker(
+                key="fieldshift-device-location-coords",
+                button_label="◎ &nbsp; Capture Current Coordinates",
+            )
+            if device_coord_result:
+                _apply_device_location(device_coord_result)
 
     place = _pin_from_widgets()
 
