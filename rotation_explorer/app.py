@@ -20,6 +20,7 @@ from rotation_explorer.planting_ui import render_planting_window
 from rotation_explorer.seo import EXPLORER, inject_seo, page_icon
 from rotation_explorer.ui import (
     inject_css,
+    render_actionable_recommendations,
     render_charts,
     render_climate_snapshot,
     render_extension_roster,
@@ -162,5 +163,6 @@ def main() -> None:
     render_share_kit(setup, climate, rotations, flags, timing)
     render_extension_roster(setup, top)
     render_charts(climate_window, monthly)
+    render_actionable_recommendations(setup, climate, rotations, flags, timing)
     render_method_and_glossary()
     render_floating_summary_button(setup, climate, rotations, flags, timing)
