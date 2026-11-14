@@ -8,7 +8,6 @@ Field Shift is decision support for farmers and agricultural extension workers. 
 
 - Home: https://fieldshift.cloud/
 - Open the rotation explorer: https://fieldshift.cloud/explorer/
-- User guide: https://fieldshift.cloud/explorer/User_guide
 - About: https://fieldshift.cloud/explorer/About
 - Data sources: https://fieldshift.cloud/explorer/Data_sources
 - Privacy: https://fieldshift.cloud/explorer/Privacy
