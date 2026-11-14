@@ -209,13 +209,16 @@ def _apply_search_hit() -> None:
     )
 
 
-def _load_example_field() -> None:
-    name = st.session_state.get("example_field")
+def apply_pending_example_field() -> None:
+    """Apply a documentation demo choice before the Explorer renders its widgets."""
+    name = st.query_params.pop("demo_field", None)
     farm = next((item for item in EXAMPLE_FIELDS if item.name == name), None)
     if farm is None:
         return
     hydrate_location(farm)
     st.session_state["field_crop"] = farm.typical_crop
+    st.session_state["applied_setup"] = None
+    st.session_state["climate_daily"] = None
     st.session_state["climate_request_attempted"] = False
 
 
@@ -631,13 +634,6 @@ def render_location_picker() -> Place:
         disabled=not place.has_point(),
         on_click=_name_pin_from_coordinates,
     )
-
-    with st.expander("Optional example fields (not used unless you pick one)"):
-        st.caption("These are only shortcuts to known NASA POWER cache points. Your field does not have to be one of them.")
-        names = [farm.name for farm in EXAMPLE_FIELDS]
-        example = st.selectbox("Example field", ["—"] + names, key="example_field")
-        if example != "—":
-            st.button("Load example field", on_click=_load_example_field)
 
     st.session_state["place"] = place
     return place
