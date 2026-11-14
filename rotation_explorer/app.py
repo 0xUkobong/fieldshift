@@ -15,7 +15,7 @@ from rotation_explorer.insights import (
 )
 from rotation_explorer.power import PowerAPIError, fetch_power_payload, power_to_dataframe
 from rotation_explorer.scoring import score_rotations
-from rotation_explorer.location_ui import render_location_picker
+from rotation_explorer.location_ui import apply_pending_example_field, render_location_picker
 from rotation_explorer.planting_ui import render_planting_window
 from rotation_explorer.seo import EXPLORER, inject_seo, page_icon
 from rotation_explorer.ui import (
@@ -74,6 +74,7 @@ def main() -> None:
     )
     inject_seo(EXPLORER)
     inject_css()
+    apply_pending_example_field()
     render_header()
     setup, submitted = render_sidebar()
     render_location_picker()

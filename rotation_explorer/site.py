@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from rotation_explorer.config import DISCLAIMER
+from rotation_explorer.config import DISCLAIMER, EXAMPLE_FIELDS
 from rotation_explorer.seo import (
     ABOUT,
     DATA,
@@ -221,6 +221,7 @@ def render_data_sources() -> None:
 
 def render_documentation() -> None:
     explorer_url = app_route("/")
+    example_names = [farm.name for farm in EXAMPLE_FIELDS]
     st.markdown(
         f"""
         <div class="hero">
@@ -237,7 +238,31 @@ def render_documentation() -> None:
             <li><strong>Set crop & priorities:</strong> Choose your current primary crop (e.g. Maize, Sorghum, Millet, Rice, Cassava) and what matters most to your farm (water conservation, soil organic matter, nitrogen fixation, erosion control, or animal forage).</li>
             <li><strong>Apply and compare:</strong> Click <strong>"Apply and compare"</strong>. Field Shift immediately contacts NASA POWER, analyzes the 7-year agroclimate daily record for that exact GPS pin, scores 5 alternative crop rotations, and visualizes seasonal rainfall windows.</li>
           </ol>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
+    st.markdown(
+        """
+        <div class="legal">
+          <h2>Try a demo field</h2>
+          <p>To explore the workflow before entering your own location, choose a sample field below. This pre-fills the Explorer with an example location and crop; review the details there and press <strong>Apply and compare</strong> when you are ready to see the comparison.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.selectbox("Sample field for the demo", example_names, key="docs_example_field")
+    st.page_link(
+        "app.py",
+        label="Open selected demo in Explorer",
+        icon=":material/open_in_new:",
+        query_params={"demo_field": st.session_state["docs_example_field"]},
+    )
+
+    st.markdown(
+        f"""
+        <div class="legal">
           <h2>2. Making Sense of the Climate Data</h2>
           <p>Unlike generic weather apps that show forecasts, Field Shift pulls an official <strong>7-year daily agroclimate record</strong> from NASA’s Prediction Of Worldwide Energy Resources (POWER) satellite and assimilation models:</p>
           <ul>
