@@ -9,6 +9,7 @@ from rotation_explorer.seo import (
     ABOUT,
     DATA,
     DISCLAIMER as DISCLAIMER_SEO,
+    DOCS,
     PRIVACY,
     PageSEO,
     app_route,
@@ -23,6 +24,7 @@ UPDATED = "12 November 2026"
 def render_legal_nav(current: str = "") -> None:
     explorer_url = app_route("/")
     about_url = app_route("/About")
+    docs_url = app_route("/Documentation")
     disclaimer_url = app_route("/Disclaimer")
     privacy_url = app_route("/Privacy")
     st.markdown(
@@ -31,6 +33,7 @@ def render_legal_nav(current: str = "") -> None:
           <a class="brand" href="{explorer_url}" target="_self"><img class="brand-mark" src="{header_mark_src()}" width="36" height="36" alt="">FIELD SHIFT <small>Rotation Explorer</small></a>
           <div class="toplinks">
             <a href="{explorer_url}" target="_self">EXPLORER</a>
+            <a href="{docs_url}" target="_self">DOCS</a>
             <a href="{about_url}" target="_self">ABOUT</a>
             <a href="{disclaimer_url}" target="_self">DISCLAIMER</a>
             <a href="{privacy_url}" target="_self">PRIVACY</a>
@@ -44,7 +47,9 @@ def render_legal_nav(current: str = "") -> None:
 
 
 def render_footer() -> None:
-    about, disclaimer, privacy, data, copy = st.columns([0.9, 1.15, 0.9, 1.4, 3.4])
+    docs, about, disclaimer, privacy, data, copy = st.columns([0.85, 0.85, 1.05, 0.85, 1.3, 3.6])
+    with docs:
+        st.page_link("pages/5_Documentation.py", label="Docs")
     with about:
         st.page_link("pages/1_About.py", label="About")
     with disclaimer:
@@ -55,7 +60,7 @@ def render_footer() -> None:
         st.page_link("pages/4_Data_sources.py", label="Data & licenses")
     with copy:
         st.caption(
-            "Rotation Explorer · NASA Space Apps Challenge 2026 · "
+            "Rotation Explorer · Built by Team Asterverse · NASA Space Apps Challenge 2026 · "
             "Data courtesy of NASA Langley Research Center POWER Project."
         )
 
@@ -69,6 +74,7 @@ def start_legal_page(title: str, current: str, page: PageSEO | None = None) -> N
     )
     seo_pages = {
         "about": ABOUT,
+        "docs": DOCS,
         "disclaimer": DISCLAIMER_SEO,
         "privacy": PRIVACY,
         "data": DATA,
@@ -206,6 +212,71 @@ def render_data_sources() -> None:
           <p>Country and subdivision lists use ISO 3166 data via the pycountry library. Local government and village names come from OpenStreetMap, not from ISO.</p>
           <h2>This application</h2>
           <p>Rotation Explorer is a NASA Space Apps Challenge 2026 prototype. Rule-based scores, copy, and layout are part of the Field Shift project. Third-party libraries (Streamlit, pandas, Plotly, Folium, and others) keep their own licenses.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    render_footer()
+
+
+def render_documentation() -> None:
+    explorer_url = app_route("/")
+    st.markdown(
+        f"""
+        <div class="hero">
+          <div>
+            <div class="kicker">User Guide & Reference · Updated {UPDATED}</div>
+            <h1 id="overview">How to Use Field Shift</h1>
+            <p class="lede">A complete guide to making sense of local NASA climate records, rotation scoring, planting calendars, and offline sharing for your field.</p>
+          </div>
+        </div>
+        <div class="legal">
+          <h2>1. Quickstart: 3 Simple Steps</h2>
+          <ol>
+            <li><strong>Locate your field:</strong> Select Continent, Country, State, LGA, and Area, search any place name, click directly on the interactive map, or tap <em>"Capture Current Coordinates"</em> from your mobile device or browser.</li>
+            <li><strong>Set crop & priorities:</strong> Choose your current primary crop (e.g. Maize, Sorghum, Millet, Rice, Cassava) and what matters most to your farm (water conservation, soil organic matter, nitrogen fixation, erosion control, or animal forage).</li>
+            <li><strong>Apply and compare:</strong> Click <strong>"Apply and compare"</strong>. Field Shift immediately contacts NASA POWER, analyzes the 7-year agroclimate daily record for that exact GPS pin, scores 5 alternative crop rotations, and visualizes seasonal rainfall windows.</li>
+          </ol>
+
+          <h2>2. Making Sense of the Climate Data</h2>
+          <p>Unlike generic weather apps that show forecasts, Field Shift pulls an official <strong>7-year daily agroclimate record</strong> from NASA’s Prediction Of Worldwide Energy Resources (POWER) satellite and assimilation models:</p>
+          <ul>
+            <li><strong>Typical Daily High (T2M_MAX):</strong> Year-round mean daily maximum temperature. Helps assess if crops are at baseline heat stress.</li>
+            <li><strong>Rain in a Typical Year (PRECTOTCORR):</strong> Long-term average annual rainfall (mm/year).</li>
+            <li><strong>Rainfall Trend (%):</strong> Compares recent years against earlier years in the record. A negative percentage (e.g. -12%) indicates a drying trend, prompting drought-hardy varieties.</li>
+            <li><strong>Heat Stress Days:</strong> Count of days where temperatures exceeded 32 °C. Frequent heat spikes during flowering or grain-fill severely impact cereal yields.</li>
+            <li><strong>Reference Evapotranspiration (ET₀):</strong> Calculated using solar radiation and temperature range via the Hargreaves-Samani method. Shows how much moisture the atmosphere is demanding from soil and foliage.</li>
+            <li><strong>Moisture Balance (Rain − ET₀):</strong> Indicates whether rainfall satisfies evaporative demand or if the field experiences chronic seasonal water deficits.</li>
+          </ul>
+
+          <h2>3. Understanding the Rotation Scores (1 to 5)</h2>
+          <p>Field Shift evaluates 5 tailored rotations against three transparent weighted pillars:</p>
+          <ul>
+            <li><strong>Water Resilience (40%):</strong> How well the sequence handles drought, heat waves, and evaporative water deficit. Rotations featuring deep roots, mulch cover, and drought-hardy pulses receive higher marks.</li>
+            <li><strong>Soil Health (30%):</strong> Ability to build organic matter, fix natural nitrogen from atmospheric air, prevent erosion, and alleviate soil compaction.</li>
+            <li><strong>Farmer Priorities (30%):</strong> Direct alignment with the specific goals you selected in the sidebar (e.g., animal forage, low fertilizer cost, moisture saving).</li>
+          </ul>
+          <p>The 5 evaluated rotation models are:</p>
+          <ol>
+            <li><strong>Current Rotation (Baseline):</strong> Your existing mono-crop or traditional rotation practice.</li>
+            <li><strong>Drought-Tolerant + Cover Crop:</strong> Adds resilient sorghum/millet and mulch/cover crops to armor dry soils.</li>
+            <li><strong>Nitrogen-Fixing Legume Mix:</strong> Intersperses pulses (cowpea, groundnut, soybean) to cut synthetic nitrogen costs and restore organic matter.</li>
+            <li><strong>Agroforestry / Tree-Integrated:</strong> Incorporates multipurpose trees (e.g. <em>Faidherbia albida</em>, fruit/fuelwood trees) with legume understory for shade, wind protection, and long-term carbon.</li>
+            <li><strong>Intensive Intercropping:</strong> Dual-canopy simultaneous cropping (e.g. cereal + legume in the same bed) to maximize yield per hectare and lower pest pressure.</li>
+          </ol>
+
+          <h2>4. What to Do with This Information</h2>
+          <p>Field Shift is an agronomic decision-support tool designed to turn climate data into actionable field practices:</p>
+          <ul>
+            <li><strong>Start with a Test Plot:</strong> Never switch 100% of your acreage overnight. Dedicate a small 0.1 to 0.5 hectare demonstration strip to test the top-recommended rotation.</li>
+            <li><strong>Check Planting Windows:</strong> Review the <em>Planting Window & Moisture Screen</em> to identify the months with the highest rainfall reliability and lowest dry-spell frequency before buying seeds.</li>
+            <li><strong>Use the Plain-English Summary:</strong> Click the floating <em>"Plain-English Summary"</em> button at the bottom-right corner for a jargon-free brief you can print or read aloud.</li>
+            <li><strong>Take It Offline:</strong> Copy the SMS text or download the printable one-page Farmer Card HTML to take to the field with no internet connection.</li>
+            <li><strong>Verify Locally:</strong> Take your FieldShift summary to your local agricultural extension agent, cooperative head, or agro-dealer to confirm seed availability and local disease resistance before planting.</li>
+          </ul>
+          <div style="margin-top:2rem;">
+            <a class="pill-link" href="{explorer_url}" target="_self">Return to Explorer <span>↗</span></a>
+          </div>
         </div>
         """,
         unsafe_allow_html=True,

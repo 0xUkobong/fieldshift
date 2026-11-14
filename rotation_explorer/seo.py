@@ -134,6 +134,14 @@ DATA = PageSEO(
     ),
     path="/Data_sources",
 )
+DOCS = PageSEO(
+    title=f"Documentation · {SITE_SHORT_NAME}",
+    description=(
+        "User guide and documentation for Field Shift Rotation Explorer: learn how to locate fields, "
+        "interpret NASA climate trends, evaluate rotation scores, and make informed planting decisions."
+    ),
+    path="/Documentation",
+)
 
 
 def _software_application() -> dict[str, Any]:

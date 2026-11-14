@@ -410,6 +410,7 @@ def inject_css() -> None:
 def render_header() -> None:
     explorer_url = app_route("/")
     about_url = app_route("/About")
+    docs_url = app_route("/Documentation")
     st.markdown(
         f"""
         <nav class="topbar" aria-label="Main navigation">
@@ -418,6 +419,7 @@ def render_header() -> None:
             <a href="#field">FIELD</a>
             <a href="#climate">CLIMATE</a>
             <a href="#rotations">ROTATIONS</a>
+            <a href="{docs_url}">DOCS</a>
             <a href="{about_url}">ABOUT</a>
             <a class="pill-link" href="#rotations">Explore rotations <span>↗</span></a>
           </div>
@@ -427,6 +429,7 @@ def render_header() -> None:
               <a href="#field">Field</a>
               <a href="#climate">Climate</a>
               <a href="#rotations">Rotations</a>
+              <a href="{docs_url}" target="_self">Docs</a>
               <a href="{about_url}" target="_self">About</a>
               <a class="pill-link" href="#rotations">Explore rotations <span>↗</span></a>
             </nav>
@@ -1113,6 +1116,66 @@ def render_charts(daily: pd.DataFrame, monthly: pd.DataFrame) -> None:
             water_balance_figure(monthly),
             width="stretch",
             config=PLOTLY_CONFIG,
+        )
+
+
+def render_actionable_recommendations(
+    setup: FarmSetup,
+    climate: ClimateSummary,
+    rotations: list[RotationResult],
+    flags: list[RiskFlag],
+    timing: list[str],
+) -> None:
+    """Render a practical 'What to do with this information' guidance section before methodology."""
+    top = max(rotations, key=lambda item: item.score)
+    farm = setup.farm
+    action = action_line(setup.crop, top, setup.farm.region)
+    first_step = timing[0] if timing else NEXT_STEPS.get(top.name, "Consult a local advisor before planting.")
+
+    st.markdown(
+        """
+        <div class="section-head stacked" id="action-guide">
+          <h2>What to do with this information</h2>
+          <p>Data without action does not grow crops. Here is a practical, low-risk roadmap to turn this comparison into field decisions.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    c1, c2, c3 = st.columns(3, gap="medium")
+    with c1:
+        st.markdown(
+            f"""
+            <div class="summary-card-brief" style="min-height:220px; border-left: 4px solid #2f855a;">
+              <h4>1. Start with a Test Strip</h4>
+              <p>Do not convert your entire field at once. Test <strong>{escape(top.name)}</strong> on a small 0.1–0.5 hectare corner of your plot.</p>
+              <p><strong>Immediate action:</strong> {escape(action)}</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with c2:
+        st.markdown(
+            f"""
+            <div class="summary-card-brief" style="min-height:220px; border-left: 4px solid #8ec7e2;">
+              <h4>2. Time the Season Right</h4>
+              <p>Check the <strong>Planting Window screen</strong> above before purchasing seed.</p>
+              <p><strong>Window guidance:</strong> {escape(first_step)}</p>
+              <p>Plant early in the high-reliability rainfall window to avoid mid-season dry spells.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with c3:
+        st.markdown(
+            f"""
+            <div class="summary-card-brief" style="min-height:220px; border-left: 4px solid #f7ca50;">
+              <h4>3. Verify with Local Advisors</h4>
+              <p>Take this report to your local agricultural extension worker or cooperative leader.</p>
+              <p>Verify certified seed availability, local pest/disease resistance, and regional market prices before breaking ground.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
 
