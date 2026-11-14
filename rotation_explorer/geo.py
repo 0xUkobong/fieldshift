@@ -170,18 +170,21 @@ def place_from_nominatim(payload: dict[str, Any]) -> Place:
         or address.get("municipality")
         or address.get("district")
         or address.get("city_district")
+        or address.get("city")
         or ""
     )
     area = (
         address.get("village")
         or address.get("hamlet")
-        or address.get("town")
         or address.get("suburb")
         or address.get("neighbourhood")
-        or address.get("city")
+        or address.get("town")
+        or (address.get("city") if address.get("city") != lga else "")
         or ""
     )
-    if area and area == lga:
+    if not lga and area:
+        lga = area
+    if area and area == lga and (address.get("suburb") or address.get("neighbourhood")):
         area = address.get("suburb") or address.get("neighbourhood") or area
     lat_raw = payload.get("lat")
     lon_raw = payload.get("lon")

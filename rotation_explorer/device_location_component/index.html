@@ -86,7 +86,10 @@
           navigator.geolocation.getCurrentPosition(
             (position) => {
               const { latitude, longitude, accuracy } = position.coords;
-              status.textContent = "Location added to the map. Review the pin before applying.";
+              const roundedAcc = Number.isFinite(accuracy) ? Math.round(accuracy) : null;
+              status.textContent = roundedAcc !== null
+                ? `Captured coordinates: ${latitude.toFixed(4)}°, ${longitude.toFixed(4)}° (±${roundedAcc} m).`
+                : `Captured coordinates: ${latitude.toFixed(4)}°, ${longitude.toFixed(4)}°.`;
               setValue({
                 lat: latitude,
                 lon: longitude,
@@ -110,7 +113,7 @@
               button.disabled = false;
               busy = false;
             },
-            { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
           );
         });
 

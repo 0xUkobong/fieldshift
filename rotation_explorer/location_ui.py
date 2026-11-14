@@ -262,7 +262,7 @@ def _on_place_search() -> None:
         )
 
 
-def _apply_device_location(result: dict[str, object]) -> None:
+def _apply_device_location(result: dict[str, object], *, rerun: bool = False) -> None:
     event_id = result.get("eventId")
     if event_id is None or event_id == st.session_state.get("loc_device_event_id"):
         return
@@ -282,13 +282,26 @@ def _apply_device_location(result: dict[str, object]) -> None:
         if isinstance(accuracy, (int, float)) and accuracy >= 0
         else None
     )
-    place = Place(lat=float(lat), lon=float(lon), display_name="Device location")
+
+    # Attempt to reverse geocode the captured coordinates so Continent,
+    # Country, State, LGA, Area, and hierarchy are pre-filled automatically.
+    try:
+        place = reverse_geocode(float(lat), float(lon))
+        place = replace(place, lat=float(lat), lon=float(lon))
+    except Exception:
+        place = Place(lat=float(lat), lon=float(lon), display_name="Device location")
+
     farm = farm_from_place(
         place,
-        name=st.session_state.get("field_name") or "My field",
+        name=st.session_state.get("field_name") or place.suggested_name() or "My field",
         crop=st.session_state.get("field_crop", "Maize"),
     )
-    hydrate_location(farm, accuracy_m=accuracy_m)
+    if rerun:
+        st.session_state["_pending_location_hydration"] = farm
+        st.session_state["_pending_location_accuracy_m"] = accuracy_m
+        st.rerun()
+    else:
+        hydrate_location(farm, accuracy_m=accuracy_m)
 
 
 def _name_pin_from_coordinates() -> None:
@@ -338,7 +351,8 @@ def _pin_from_widgets() -> Place:
 def render_location_picker() -> Place:
     pending_farm = st.session_state.pop("_pending_location_hydration", None)
     if isinstance(pending_farm, Farm):
-        hydrate_location(pending_farm)
+        accuracy_m = st.session_state.pop("_pending_location_accuracy_m", None)
+        hydrate_location(pending_farm, accuracy_m=accuracy_m)
 
     st.session_state.setdefault("loc_continent", "")
     st.session_state.setdefault("loc_country", "")
@@ -366,7 +380,7 @@ def render_location_picker() -> Place:
 
     device_result = device_location_picker(key="fieldshift-device-location")
     if device_result:
-        _apply_device_location(device_result)
+        _apply_device_location(device_result, rerun=True)
 
     st.text_input(
         "Search any place",
@@ -608,7 +622,7 @@ def render_location_picker() -> Place:
                 button_label="◎ &nbsp; Capture Current Coordinates",
             )
             if device_coord_result:
-                _apply_device_location(device_coord_result)
+                _apply_device_location(device_coord_result, rerun=True)
 
     place = _pin_from_widgets()
 
