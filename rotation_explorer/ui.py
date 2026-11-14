@@ -318,6 +318,78 @@ button[kind="secondary"]:hover,.stButton button:hover { border:0; background:#a6
   .foot,.site-foot { gap:.65rem; }
   .site-foot .copy { width:100%; margin-left:0; }
 }
+/* Fixed Floating Summary Button at viewport bottom-right */
+div.st-key-btn_floating_summary {
+  position: fixed !important;
+  bottom: 28px !important;
+  right: 28px !important;
+  z-index: 999999 !important;
+  width: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+div.st-key-btn_floating_summary button {
+  background: #1e1e1f !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  border-radius: 999px !important;
+  padding: 12px 22px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+  transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+div.st-key-btn_floating_summary button:hover {
+  background: #000000 !important;
+  color: #8ec7e2 !important;
+  transform: translateY(-2px) scale(1.02) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4) !important;
+}
+div.st-key-btn_floating_summary button:active {
+  transform: translateY(0) scale(0.98) !important;
+}
+@media(max-width: 540px) {
+  div.st-key-btn_floating_summary {
+    bottom: 18px !important;
+    right: 18px !important;
+  }
+  div.st-key-btn_floating_summary button {
+    padding: 10px 18px !important;
+    font-size: 13px !important;
+  }
+}
+.summary-card-brief {
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.summary-card-brief h4 {
+  margin: 0 0 .4rem;
+  font-size: 1.05rem;
+  color: #1e1e1f;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.summary-card-brief p {
+  margin: 0 0 .5rem;
+  font-size: .92rem;
+  line-height: 1.5;
+  color: #2e2e30;
+}
+.summary-card-brief ul {
+  margin: .3rem 0 .5rem 1.2rem;
+  padding: 0;
+  font-size: .88rem;
+  line-height: 1.45;
+  color: #2e2e30;
+}
 @media(max-width:390px) {
   .block-container { padding-left:.7rem; padding-right:.7rem; }
   .brand small { display:none; }
@@ -1103,3 +1175,124 @@ def render_method_and_glossary() -> None:
     from rotation_explorer.site import render_footer
 
     render_footer()
+
+
+@st.dialog("🌾 Plain-English Field Brief", width="large")
+def plain_english_summary_dialog(
+    setup: FarmSetup,
+    climate: ClimateSummary,
+    rotations: list[RotationResult],
+    flags: list[RiskFlag],
+    timing: list[str],
+) -> None:
+    top = max(rotations, key=lambda item: item.score)
+    farm = setup.farm
+
+    st.caption(f"Field: **{farm.name}** ({farm.region or f'{farm.lat:.2f}°, {farm.lon:.2f}°'}) · Main crop: **{setup.crop}**")
+
+    # 1. Weather in plain English
+    trend_str = "fairly steady"
+    if climate.precip_trend_pct <= -5:
+        trend_str = f"trending drier ({climate.precip_trend_pct:.0f}% drop over recent years)"
+    elif climate.precip_trend_pct >= 5:
+        trend_str = f"trending wetter ({climate.precip_trend_pct:+.0f}% rise over recent years)"
+
+    heat_str = "uncommon"
+    if climate.heat_days_per_year >= 30:
+        heat_str = f"frequent ({climate.heat_days_per_year:.0f} days/year above {HEAT_STRESS_C:.0f} °C)"
+    elif climate.heat_days_per_year >= 10:
+        heat_str = f"occasional ({climate.heat_days_per_year:.0f} days/year)"
+
+    et0_str = f"with roughly {climate.avg_et0_mm_day:.1f} mm/day evaporative demand" if climate.avg_et0_mm_day > 0 else ""
+
+    st.markdown(
+        f"""
+        <div class="summary-card-brief">
+          <h4>🌦️ The Weather in Plain Words</h4>
+          <p>
+            Over the 7-year NASA record, this field sees an average of <strong>{climate.annual_precip_mm:.0f} mm</strong> of rainfall annually {et0_str}.
+            Rainfall has been <strong>{trend_str}</strong>, and very hot days are <strong>{heat_str}</strong>.
+          </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # 2. Top Recommendation & Why
+    st.markdown(
+        f"""
+        <div class="summary-card-brief" style="border-left: 5px solid #2f855a;">
+          <h4>🥇 Top Recommended Rotation: {escape(top.name)} ({top.score:.1f} / 5)</h4>
+          <p><strong>Sequence:</strong> <code>{escape(top.sequence)}</code></p>
+          <p><strong>Why this fits:</strong> {escape(top.why)}</p>
+          <p><strong>Key benefits:</strong></p>
+          <ul>
+            {"".join(f"<li>{escape(b)}</li>" for b in top.benefits[:3])}
+          </ul>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # 3. Key Risks to Watch
+    active_flags = [f for f in flags if f.level in ("yellow", "red")]
+    flags_html = "".join(
+        f"<li><strong>{escape(f.label)}:</strong> {escape(f.detail)}</li>"
+        for f in (active_flags or flags)
+    )
+    st.markdown(
+        f"""
+        <div class="summary-card-brief" style="border-left: 5px solid #d97706;">
+          <h4>⚠️ Key Risks to Watch Out For</h4>
+          <ul>
+            {flags_html}
+          </ul>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # 4. Immediate Practical Next Step
+    first_step = timing[0] if timing else NEXT_STEPS.get(top.name, "Consult with a local extension worker before planting.")
+    action = action_line(setup.crop, top, setup.farm.region)
+    st.markdown(
+        f"""
+        <div class="summary-card-brief" style="border-left: 5px solid #8ec7e2;">
+          <h4>🚜 Recommended Next Step</h4>
+          <p><strong>Action:</strong> {escape(action)}</p>
+          <p><strong>Timing:</strong> {escape(first_step)}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Quick share copy
+    plain_brief_text = (
+        f"🌾 FieldShift Plain-English Summary for {farm.name}\n"
+        f"Location: {farm.region or f'{farm.lat:.2f}, {farm.lon:.2f}'}\n"
+        f"Rainfall: ~{climate.annual_precip_mm:.0f} mm/yr ({trend_str})\n"
+        f"Top Match: {top.name} ({top.score:.1f}/5)\n"
+        f"Sequence: {top.sequence}\n"
+        f"Action: {action}\n"
+        f"Timing: {first_step}\n"
+        f"Data: NASA POWER Agroclimatology."
+    )
+    st.download_button(
+        "📋 Download Summary (Plain Text)",
+        plain_brief_text,
+        file_name=f"field-brief-{farm.name.lower().replace(' ', '-')}.txt",
+        mime="text/plain",
+        width="stretch",
+    )
+
+
+def render_floating_summary_button(
+    setup: FarmSetup,
+    climate: ClimateSummary,
+    rotations: list[RotationResult],
+    flags: list[RiskFlag],
+    timing: list[str],
+) -> None:
+    """Render a fixed floating button at the bottom-right corner that triggers the Plain-English Summary dialog."""
+    if st.button("📋 Plain-English Summary", key="btn_floating_summary"):
+        plain_english_summary_dialog(setup, climate, rotations, flags, timing)

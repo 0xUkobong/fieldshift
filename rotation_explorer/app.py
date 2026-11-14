@@ -24,6 +24,7 @@ from rotation_explorer.ui import (
     render_climate_snapshot,
     render_extension_roster,
     render_farm_chip,
+    render_floating_summary_button,
     render_header,
     render_method_and_glossary,
     render_recommendation,
@@ -162,3 +163,4 @@ def main() -> None:
     render_extension_roster(setup, top)
     render_charts(climate_window, monthly)
     render_method_and_glossary()
+    render_floating_summary_button(setup, climate, rotations, flags, timing)
